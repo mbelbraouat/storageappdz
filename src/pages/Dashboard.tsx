@@ -136,7 +136,6 @@ const Dashboard = () => {
         setRecentArchives([]);
       }
 
-      setRecentArchives(archives as any || []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
