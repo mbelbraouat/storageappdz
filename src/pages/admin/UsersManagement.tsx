@@ -19,6 +19,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Users, 
@@ -27,10 +37,13 @@ import {
   Search,
   Edit,
   Loader2,
-  Mail,
-  Calendar
+  Plus,
+  Trash2,
+  Calendar,
+  Box
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UserProfile {
   id: string;
@@ -39,18 +52,30 @@ interface UserProfile {
   avatar_url: string | null;
   created_at: string;
   role?: 'admin' | 'user';
-  email?: string;
+  can_manage_boxes?: boolean;
 }
 
 const UsersManagement = () => {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDialog, setShowDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
   const [selectedRole, setSelectedRole] = useState<'admin' | 'user'>('user');
+  const [canManageBoxes, setCanManageBoxes] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Create user form
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'user'>('user');
+  const [newUserCanManageBoxes, setNewUserCanManageBoxes] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -58,7 +83,6 @@ const UsersManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      // Fetch profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -66,14 +90,12 @@ const UsersManagement = () => {
 
       if (profilesError) throw profilesError;
 
-      // Fetch roles
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role');
 
       if (rolesError) throw rolesError;
 
-      // Combine data
       const usersWithRoles = (profiles || []).map(profile => {
         const userRole = roles?.find(r => r.user_id === profile.user_id);
         return {
@@ -98,6 +120,7 @@ const UsersManagement = () => {
   const handleEditRole = (user: UserProfile) => {
     setEditingUser(user);
     setSelectedRole(user.role || 'user');
+    setCanManageBoxes(user.can_manage_boxes || false);
     setShowDialog(true);
   };
 
@@ -107,7 +130,6 @@ const UsersManagement = () => {
     setIsSaving(true);
 
     try {
-      // Check if role exists
       const { data: existingRole } = await supabase
         .from('user_roles')
         .select('id')
@@ -115,7 +137,6 @@ const UsersManagement = () => {
         .maybeSingle();
 
       if (existingRole) {
-        // Update existing role
         const { error } = await supabase
           .from('user_roles')
           .update({ role: selectedRole })
@@ -123,7 +144,6 @@ const UsersManagement = () => {
 
         if (error) throw error;
       } else {
-        // Insert new role
         const { error } = await supabase
           .from('user_roles')
           .insert({ user_id: editingUser.user_id, role: selectedRole });
@@ -150,6 +170,121 @@ const UsersManagement = () => {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (!newUserEmail || !newUserPassword || !newUserName) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Sign up the new user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newUserEmail,
+        password: newUserPassword,
+        options: {
+          data: {
+            full_name: newUserName,
+          },
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Update role if admin
+        if (newUserRole === 'admin') {
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .update({ role: 'admin' })
+            .eq('user_id', authData.user.id);
+
+          if (roleError) throw roleError;
+        }
+      }
+
+      toast({
+        title: 'User created',
+        description: `${newUserName} has been created successfully.`,
+      });
+
+      setShowCreateDialog(false);
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserName('');
+      setNewUserRole('user');
+      setNewUserCanManageBoxes(false);
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create user',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+
+    // Prevent self-deletion
+    if (deletingUser.user_id === currentUser?.id) {
+      toast({
+        title: 'Error',
+        description: 'You cannot delete your own account',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Delete profile (this will cascade to user_roles due to FK)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', deletingUser.user_id);
+
+      if (profileError) throw profileError;
+
+      // Delete role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', deletingUser.user_id);
+
+      if (roleError) console.error('Role deletion error:', roleError);
+
+      toast({
+        title: 'User deleted',
+        description: `${deletingUser.full_name} has been removed.`,
+      });
+
+      setShowDeleteDialog(false);
+      setDeletingUser(null);
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete user',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const filteredUsers = users.filter(user =>
     user.full_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -158,14 +293,20 @@ const UsersManagement = () => {
     <AppLayout requireAdmin>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-            <Users className="w-7 h-7 text-primary" />
-            Users & Roles
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage user accounts and their permissions
-          </p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
+              <Users className="w-7 h-7 text-primary" />
+              Users & Roles
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Manage user accounts and their permissions
+            </p>
+          </div>
+          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Create User
+          </Button>
         </div>
 
         {/* Search */}
@@ -211,6 +352,9 @@ const UsersManagement = () => {
                           </div>
                           <div>
                             <p className="font-medium">{user.full_name}</p>
+                            {user.user_id === currentUser?.id && (
+                              <span className="text-xs text-muted-foreground">(You)</span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -232,15 +376,30 @@ const UsersManagement = () => {
                         </div>
                       </td>
                       <td>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditRole(user)}
-                          className="gap-1"
-                        >
-                          <Edit className="w-4 h-4" />
-                          Change Role
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditRole(user)}
+                            className="gap-1"
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit Role
+                          </Button>
+                          {user.user_id !== currentUser?.id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setDeletingUser(user);
+                                setShowDeleteDialog(true);
+                              }}
+                              className="gap-1 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -255,7 +414,7 @@ const UsersManagement = () => {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>Change User Role</DialogTitle>
+            <DialogTitle>Edit User Role</DialogTitle>
             <DialogDescription>
               Update the role for {editingUser?.full_name}
             </DialogDescription>
@@ -295,6 +454,7 @@ const UsersManagement = () => {
                   <li>• Full access to admin dashboard</li>
                   <li>• Manage users and roles</li>
                   <li>• Manage doctors, operations, file types</li>
+                  <li>• Create and delete boxes</li>
                   <li>• System settings access</li>
                 </ul>
               ) : (
@@ -322,6 +482,116 @@ const UsersManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create User Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Create New User</DialogTitle>
+            <DialogDescription>
+              Add a new user to the system
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name *</Label>
+              <Input
+                id="name"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                placeholder="Enter full name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newUserEmail}
+                onChange={(e) => setNewUserEmail(e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password *</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
+                placeholder="Enter password (min 6 characters)"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select
+                value={newUserRole}
+                onValueChange={(value: 'admin' | 'user') => setNewUserRole(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">
+                    <div className="flex items-center gap-2">
+                      <UserIcon className="w-4 h-4" />
+                      User
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="admin">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-4 h-4" />
+                      Administrator
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateDialog(false)}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleCreateUser} disabled={isSaving} className="gap-2">
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Create User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{deletingUser?.full_name}</strong>? 
+              This action cannot be undone and will remove all their data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isSaving}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

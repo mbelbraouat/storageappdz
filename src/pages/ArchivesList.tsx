@@ -71,16 +71,33 @@ const ArchivesList = () => {
           year,
           is_archived,
           created_at,
+          created_by,
           doctor:doctors(full_name),
           operation:operation_actes(name),
           box:archive_boxes(name, shelf, column_position, side),
-          creator:profiles!archives_created_by_fkey(full_name),
           files:archive_files(id, is_attached)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setArchives(data as any || []);
+
+      // Fetch creator profiles separately
+      if (data && data.length > 0) {
+        const creatorIds = [...new Set(data.map(a => a.created_by))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', creatorIds);
+        
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+        const archivesWithCreators = data.map(a => ({
+          ...a,
+          creator: { full_name: profileMap.get(a.created_by) || 'Unknown' }
+        }));
+        setArchives(archivesWithCreators as any);
+      } else {
+        setArchives([]);
+      }
     } catch (error) {
       console.error('Error fetching archives:', error);
     } finally {
