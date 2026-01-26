@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,7 +77,11 @@ const SystemSettings = () => {
   const saveSetting = async (key: string, value: unknown) => {
     setIsSaving(true);
     try {
-      await supabase.from('system_settings').upsert({ setting_key: key, setting_value: value }, { onConflict: 'setting_key' });
+      const { error } = await supabase.from('system_settings').upsert(
+        [{ setting_key: key, setting_value: value as Json }],
+        { onConflict: 'setting_key' }
+      );
+      if (error) throw error;
       toast({ title: 'Settings saved', description: `${key.toUpperCase()} settings updated.` });
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
