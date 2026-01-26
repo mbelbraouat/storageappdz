@@ -112,11 +112,29 @@ const Dashboard = () => {
           patient_full_name,
           admission_id,
           created_at,
-          box:archive_boxes(name),
-          creator:profiles!archives_created_by_fkey(full_name)
+          created_by,
+          box:archive_boxes(name)
         `)
         .order('created_at', { ascending: false })
         .limit(5);
+
+      // Fetch creator profiles separately
+      if (archives && archives.length > 0) {
+        const creatorIds = [...new Set(archives.map(a => a.created_by))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, full_name')
+          .in('user_id', creatorIds);
+        
+        const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
+        const archivesWithCreators = archives.map(a => ({
+          ...a,
+          creator: { full_name: profileMap.get(a.created_by) || 'Unknown' }
+        }));
+        setRecentArchives(archivesWithCreators as any);
+      } else {
+        setRecentArchives([]);
+      }
 
       setRecentArchives(archives as any || []);
     } catch (error) {
