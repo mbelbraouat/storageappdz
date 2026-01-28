@@ -10,7 +10,13 @@ import {
   FolderOpen,
   Activity,
   TrendingUp,
-  Clock
+  Clock,
+  Pill,
+  Calendar,
+  ClipboardList,
+  Bed,
+  Syringe,
+  HeartPulse
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -91,6 +97,15 @@ const AdminDashboard = () => {
       default: return <Activity className="w-4 h-4 text-muted-foreground" />;
     }
   };
+
+  const comingSoonFeatures = [
+    { icon: Pill, title: 'Pharmacy Management', description: 'Track medications and prescriptions' },
+    { icon: Calendar, title: 'Appointment Scheduling', description: 'Manage patient appointments' },
+    { icon: ClipboardList, title: 'Inventory Management', description: 'Medical supplies tracking' },
+    { icon: Bed, title: 'Ward Management', description: 'Bed allocation and patient tracking' },
+    { icon: Syringe, title: 'Lab Results Integration', description: 'Connect with laboratory systems' },
+    { icon: HeartPulse, title: 'Vital Signs Monitoring', description: 'Patient health metrics dashboard' },
+  ];
 
   return (
     <AppLayout requireAdmin>
@@ -216,6 +231,40 @@ const AdminDashboard = () => {
               </div>
             </div>
           </a>
+        </div>
+
+        {/* Coming Soon Section */}
+        <div className="card-stats">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <HeartPulse className="w-5 h-5 text-primary" />
+              Coming Soon
+            </h2>
+            <span className="status-badge bg-primary/10 text-primary border-primary/20">
+              In Development
+            </span>
+          </div>
+          <p className="text-muted-foreground mb-6">
+            We're working on exciting new features to enhance your medical management experience.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {comingSoonFeatures.map((feature, index) => (
+              <div 
+                key={index}
+                className="p-4 rounded-lg border border-dashed border-muted-foreground/30 bg-accent/10 opacity-75"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
+                    <feature.icon className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-muted-foreground">{feature.title}</h3>
+                    <p className="text-xs text-muted-foreground/70">{feature.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </AppLayout>

@@ -23,6 +23,7 @@ interface Doctor {
   id: string;
   full_name: string;
   specialty: string | null;
+  local_archive?: boolean;
 }
 
 interface OperationActe {
@@ -166,6 +167,38 @@ const NewArchive = () => {
         return;
       }
 
+      // Check if doctor uses local archive (exempt from numbering)
+      const selectedDoctor = doctors.find(d => d.id === formData.doctorId);
+      const usesLocalArchive = selectedDoctor?.local_archive || false;
+
+      // Get archive number if not using local archive
+      let archiveNumber: number | null = null;
+      if (!usesLocalArchive) {
+        // Fetch archive numbering settings
+        const { data: settingsData } = await supabase
+          .from('system_settings')
+          .select('setting_value')
+          .eq('setting_key', 'archive_numbering')
+          .maybeSingle();
+
+        const numberingSettings = settingsData?.setting_value as { enabled?: boolean; startingNumber?: number } | null;
+        
+        if (numberingSettings?.enabled !== false) {
+          // Get the highest existing archive number
+          const { data: maxArchive } = await supabase
+            .from('archives')
+            .select('archive_number')
+            .not('archive_number', 'is', null)
+            .order('archive_number', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const currentMax = maxArchive?.archive_number || 0;
+          const startingNumber = numberingSettings?.startingNumber || 1;
+          archiveNumber = Math.max(currentMax + 1, startingNumber);
+        }
+      }
+
       // Create archive
       const { data: archive, error: archiveError } = await supabase
         .from('archives')
@@ -178,11 +211,26 @@ const NewArchive = () => {
           box_id: formData.boxId,
           created_by: user.id,
           notes: formData.notes.trim() || null,
+          archive_number: archiveNumber,
         })
         .select()
         .single();
 
       if (archiveError) throw archiveError;
+
+      // Update the starting number in settings if we used it
+      if (archiveNumber !== null) {
+        await supabase.from('system_settings').upsert(
+          [{ 
+            setting_key: 'archive_numbering', 
+            setting_value: { 
+              enabled: true, 
+              startingNumber: archiveNumber + 1 
+            } 
+          }],
+          { onConflict: 'setting_key' }
+        );
+      }
 
       // Create archive file entries
       const fileEntries = Object.entries(selectedFiles)
@@ -208,12 +256,14 @@ const NewArchive = () => {
         action: 'create',
         entity_type: 'archive',
         entity_id: archive.id,
-        details: { patient_name: formData.patientFullName },
+        details: { patient_name: formData.patientFullName, archive_number: archiveNumber },
       });
 
       toast({
         title: 'Archive created!',
-        description: 'The patient archive has been successfully created.',
+        description: archiveNumber 
+          ? `Archive #${archiveNumber} has been successfully created.`
+          : 'The patient archive has been successfully created (local archive).',
       });
 
       navigate('/archives');
