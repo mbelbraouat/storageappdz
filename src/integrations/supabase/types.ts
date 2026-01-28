@@ -134,6 +134,7 @@ export type Database = {
       archives: {
         Row: {
           admission_id: string
+          archive_number: number | null
           box_id: string
           created_at: string
           created_by: string
@@ -149,6 +150,7 @@ export type Database = {
         }
         Insert: {
           admission_id: string
+          archive_number?: number | null
           box_id: string
           created_at?: string
           created_by: string
@@ -164,6 +166,7 @@ export type Database = {
         }
         Update: {
           admission_id?: string
+          archive_number?: number | null
           box_id?: string
           created_at?: string
           created_by?: string
@@ -207,6 +210,7 @@ export type Database = {
           full_name: string
           id: string
           is_active: boolean
+          local_archive: boolean
           specialty: string | null
           updated_at: string
         }
@@ -215,6 +219,7 @@ export type Database = {
           full_name: string
           id?: string
           is_active?: boolean
+          local_archive?: boolean
           specialty?: string | null
           updated_at?: string
         }
@@ -223,6 +228,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_active?: boolean
+          local_archive?: boolean
           specialty?: string | null
           updated_at?: string
         }

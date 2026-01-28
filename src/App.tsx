@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NewArchive from "./pages/NewArchive";
 import ArchivesList from "./pages/ArchivesList";
+import ArchiveDetail from "./pages/ArchiveDetail";
 import BoxesPage from "./pages/BoxesPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersManagement from "./pages/admin/UsersManagement";
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/archives/new" element={<NewArchive />} />
             <Route path="/archives" element={<ArchivesList />} />
+            <Route path="/archives/:id" element={<ArchiveDetail />} />
             <Route path="/boxes" element={<BoxesPage />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<UsersManagement />} />

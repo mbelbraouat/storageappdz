@@ -34,6 +34,7 @@ interface ArchiveItem {
   patient_id: string;
   notes: string | null;
   year: number;
+  archive_number: number | null;
   is_archived: boolean;
   created_at: string;
   doctor: { full_name: string } | null;
@@ -69,6 +70,7 @@ const ArchivesList = () => {
           patient_id,
           notes,
           year,
+          archive_number,
           is_archived,
           created_at,
           created_by,
@@ -241,7 +243,7 @@ const ArchivesList = () => {
                             <div>
                               <p className="font-medium">{archive.patient_full_name}</p>
                               <p className="text-xs text-muted-foreground">
-                                Year: {archive.year}
+                                {archive.archive_number ? `#${archive.archive_number}` : 'Local'} • {archive.year}
                               </p>
                             </div>
                           </div>

@@ -4,6 +4,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +20,8 @@ import {
   Edit, 
   Trash2, 
   Search,
-  Loader2
+  Loader2,
+  Home
 } from 'lucide-react';
 
 interface Doctor {
@@ -27,6 +29,7 @@ interface Doctor {
   full_name: string;
   specialty: string | null;
   is_active: boolean;
+  local_archive: boolean;
   created_at: string;
 }
 
@@ -41,6 +44,7 @@ const DoctorsManagement = () => {
   const [formData, setFormData] = useState({
     fullName: '',
     specialty: '',
+    localArchive: false,
   });
 
   useEffect(() => {
@@ -70,10 +74,11 @@ const DoctorsManagement = () => {
       setFormData({
         fullName: doctor.full_name,
         specialty: doctor.specialty || '',
+        localArchive: doctor.local_archive || false,
       });
     } else {
       setEditingDoctor(null);
-      setFormData({ fullName: '', specialty: '' });
+      setFormData({ fullName: '', specialty: '', localArchive: false });
     }
     setShowDialog(true);
   };
@@ -90,6 +95,7 @@ const DoctorsManagement = () => {
       const doctorData = {
         full_name: formData.fullName.trim(),
         specialty: formData.specialty.trim() || null,
+        local_archive: formData.localArchive,
       };
 
       if (editingDoctor) {
@@ -207,9 +213,17 @@ const DoctorsManagement = () => {
                       <Stethoscope className="w-5 h-5 text-success" />
                     </div>
                     <div>
-                      <h3 className="font-semibold">Dr. {doctor.full_name}</h3>
+                      <h3 className="font-semibold flex items-center gap-2">
+                        Dr. {doctor.full_name}
+                        {doctor.local_archive && (
+                          <span title="Local Archive">
+                            <Home className="w-3 h-3 text-warning" />
+                          </span>
+                        )}
+                      </h3>
                       <p className="text-sm text-muted-foreground">
                         {doctor.specialty || 'General'}
+                        {doctor.local_archive && ' • Local Archive'}
                       </p>
                     </div>
                   </div>
@@ -269,6 +283,20 @@ const DoctorsManagement = () => {
                 placeholder="e.g., Cardiology, Surgery"
                 value={formData.specialty}
                 onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg bg-accent/30">
+              <div>
+                <Label htmlFor="localArchive" className="cursor-pointer">Local Archive</Label>
+                <p className="text-xs text-muted-foreground">
+                  Doctor archives locally (exempt from sequential numbering)
+                </p>
+              </div>
+              <Switch
+                id="localArchive"
+                checked={formData.localArchive}
+                onCheckedChange={(checked) => setFormData({ ...formData, localArchive: checked })}
               />
             </div>
           </div>
