@@ -46,6 +46,7 @@ export type Database = {
       }
       archive_boxes: {
         Row: {
+          box_number: number | null
           column_position: string
           created_at: string
           current_count: number
@@ -56,9 +57,11 @@ export type Database = {
           qr_code: string | null
           shelf: string
           side: string
+          status: string
           updated_at: string
         }
         Insert: {
+          box_number?: number | null
           column_position: string
           created_at?: string
           current_count?: number
@@ -69,9 +72,11 @@ export type Database = {
           qr_code?: string | null
           shelf: string
           side: string
+          status?: string
           updated_at?: string
         }
         Update: {
+          box_number?: number | null
           column_position?: string
           created_at?: string
           current_count?: number
@@ -82,6 +87,7 @@ export type Database = {
           qr_code?: string | null
           shelf?: string
           side?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -204,6 +210,47 @@ export type Database = {
           },
         ]
       }
+      box_movements: {
+        Row: {
+          action: string
+          box_id: string
+          created_at: string
+          from_location: string | null
+          id: string
+          notes: string | null
+          performed_by: string
+          to_location: string | null
+        }
+        Insert: {
+          action: string
+          box_id: string
+          created_at?: string
+          from_location?: string | null
+          id?: string
+          notes?: string | null
+          performed_by: string
+          to_location?: string | null
+        }
+        Update: {
+          action?: string
+          box_id?: string
+          created_at?: string
+          from_location?: string | null
+          id?: string
+          notes?: string | null
+          performed_by?: string
+          to_location?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "box_movements_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "archive_boxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors: {
         Row: {
           created_at: string
@@ -258,6 +305,42 @@ export type Database = {
           is_required?: boolean
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          is_read: boolean
+          message: string
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          is_read?: boolean
+          message: string
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          is_read?: boolean
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string | null
         }
         Relationships: []
       }
