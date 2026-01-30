@@ -3,32 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/layout/AppLayout';
-import StatsCard from '@/components/ui/StatsCard';
+import DashboardStats from '@/components/dashboard/DashboardStats';
 import CapacityIndicator from '@/components/ui/CapacityIndicator';
 import { Button } from '@/components/ui/button';
 import { 
   Archive, 
   Box, 
-  Users, 
   Plus, 
   ArrowRight,
   Clock,
   AlertTriangle,
-  CheckCircle2
+  QrCode
 } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface DashboardStats {
-  totalArchives: number;
-  totalBoxes: number;
-  fullBoxes: number;
-  freeBoxes: number;
-}
+import { fr } from 'date-fns/locale';
 
 interface RecentArchive {
   id: string;
   patient_full_name: string;
   admission_id: string;
+  archive_number: number | null;
   created_at: string;
   box: { name: string } | null;
   creator: { full_name: string } | null;
@@ -47,12 +41,6 @@ interface BoxInfo {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const [stats, setStats] = useState<DashboardStats>({
-    totalArchives: 0,
-    totalBoxes: 0,
-    fullBoxes: 0,
-    freeBoxes: 0,
-  });
   const [recentArchives, setRecentArchives] = useState<RecentArchive[]>([]);
   const [recentBoxes, setRecentBoxes] = useState<BoxInfo[]>([]);
   const [almostFullBoxes, setAlmostFullBoxes] = useState<BoxInfo[]>([]);
@@ -78,11 +66,6 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch archives count
-      const { count: archivesCount } = await supabase
-        .from('archives')
-        .select('*', { count: 'exact', head: true });
-
       // Fetch boxes
       const { data: boxes } = await supabase
         .from('archive_boxes')
@@ -90,16 +73,7 @@ const Dashboard = () => {
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      const fullBoxes = boxes?.filter(b => b.current_count >= b.max_capacity).length || 0;
-      const freeBoxes = boxes?.filter(b => b.current_count < b.max_capacity).length || 0;
       const almostFull = boxes?.filter(b => b.current_count >= b.max_capacity * 0.8 && b.current_count < b.max_capacity) || [];
-
-      setStats({
-        totalArchives: archivesCount || 0,
-        totalBoxes: boxes?.length || 0,
-        fullBoxes,
-        freeBoxes,
-      });
 
       setRecentBoxes(boxes?.slice(0, 5) || []);
       setAlmostFullBoxes(almostFull.slice(0, 3));
@@ -111,6 +85,7 @@ const Dashboard = () => {
           id,
           patient_full_name,
           admission_id,
+          archive_number,
           created_at,
           created_by,
           box:archive_boxes(name)
@@ -129,7 +104,7 @@ const Dashboard = () => {
         const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
         const archivesWithCreators = archives.map(a => ({
           ...a,
-          creator: { full_name: profileMap.get(a.created_by) || 'Unknown' }
+          creator: { full_name: profileMap.get(a.created_by) || 'Inconnu' }
         }));
         setRecentArchives(archivesWithCreators as any);
       } else {
@@ -145,9 +120,9 @@ const Dashboard = () => {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return 'Bonjour';
+    if (hour < 18) return 'Bon après-midi';
+    return 'Bonsoir';
   };
 
   return (
@@ -157,64 +132,47 @@ const Dashboard = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
-              {getGreeting()}, {profile?.full_name?.split(' ')[0] || 'User'}!
+              {getGreeting()}, {profile?.full_name?.split(' ')[0] || 'Utilisateur'}!
             </h1>
             <p className="text-muted-foreground mt-1">
-              Here's what's happening with your medical archives today.
+              Voici ce qui se passe avec vos archives médicales aujourd'hui.
             </p>
           </div>
-          <Button onClick={() => navigate('/archives/new')} className="gap-2">
-            <Plus className="w-4 h-4" />
-            New Archive
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/scan')} className="gap-2">
+              <QrCode className="w-4 h-4" />
+              Scanner
+            </Button>
+            <Button onClick={() => navigate('/archives/new')} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nouvelle Archive
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-          <StatsCard
-            title="Total Archives"
-            value={stats.totalArchives}
-            icon={Archive}
-            variant="primary"
-          />
-          <StatsCard
-            title="Total Boxes"
-            value={stats.totalBoxes}
-            icon={Box}
-          />
-          <StatsCard
-            title="Free Boxes"
-            value={stats.freeBoxes}
-            icon={CheckCircle2}
-            variant="success"
-          />
-          <StatsCard
-            title="Full Boxes"
-            value={stats.fullBoxes}
-            icon={AlertTriangle}
-          />
-        </div>
+        <DashboardStats />
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Archives */}
           <div className="lg:col-span-2 card-stats">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-foreground">Recent Archives</h2>
+              <h2 className="text-lg font-semibold text-foreground">Archives récentes</h2>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={() => navigate('/archives')}
                 className="gap-1 text-primary"
               >
-                View All <ArrowRight className="w-4 h-4" />
+                Voir tout <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
             
             {recentArchives.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Archive className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No archives yet. Create your first archive!</p>
+                <p>Aucune archive. Créez votre première archive!</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -228,9 +186,16 @@ const Dashboard = () => {
                       <Archive className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-foreground truncate">
-                        {archive.patient_full_name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-foreground truncate">
+                          {archive.patient_full_name}
+                        </p>
+                        {archive.archive_number && (
+                          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                            #{archive.archive_number}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         ID: {archive.admission_id} • Box: {archive.box?.name || 'N/A'}
                       </p>
@@ -238,10 +203,10 @@ const Dashboard = () => {
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {format(new Date(archive.created_at), 'MMM d, HH:mm')}
+                        {format(new Date(archive.created_at), 'dd MMM, HH:mm', { locale: fr })}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        by {archive.creator?.full_name || 'Unknown'}
+                        par {archive.creator?.full_name || 'Inconnu'}
                       </p>
                     </div>
                   </div>
@@ -257,7 +222,7 @@ const Dashboard = () => {
               <div className="card-stats border-l-4 border-l-warning">
                 <div className="flex items-center gap-2 mb-4">
                   <AlertTriangle className="w-5 h-5 text-warning" />
-                  <h3 className="font-semibold text-foreground">Almost Full</h3>
+                  <h3 className="font-semibold text-foreground">Presque pleines</h3>
                 </div>
                 <div className="space-y-3">
                   {almostFullBoxes.map((box) => (
@@ -282,20 +247,20 @@ const Dashboard = () => {
             {/* Recent Boxes */}
             <div className="card-stats">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground">Recent Boxes</h3>
+                <h3 className="font-semibold text-foreground">Boxes récentes</h3>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => navigate('/boxes')}
                   className="gap-1 text-primary text-xs"
                 >
-                  View All <ArrowRight className="w-3 h-3" />
+                  Voir tout <ArrowRight className="w-3 h-3" />
                 </Button>
               </div>
               
               {recentBoxes.length === 0 ? (
                 <div className="text-center py-4 text-muted-foreground text-sm">
-                  No boxes created yet.
+                  Aucune box créée.
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -312,7 +277,7 @@ const Dashboard = () => {
                             ? 'status-badge-danger' 
                             : 'status-badge-success'
                         }`}>
-                          {box.current_count >= box.max_capacity ? 'Full' : 'Available'}
+                          {box.current_count >= box.max_capacity ? 'Pleine' : 'Disponible'}
                         </span>
                       </div>
                       <CapacityIndicator 

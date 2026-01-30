@@ -14,8 +14,10 @@ import {
   FileText,
   FolderOpen,
   Shield,
-  Bell
+  Bell,
+  QrCode
 } from 'lucide-react';
+import NotificationBell from '@/components/notifications/NotificationBell';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
@@ -29,6 +31,7 @@ const Sidebar = () => {
     { icon: Plus, label: 'New Archive', path: '/archives/new' },
     { icon: Archive, label: 'Archives List', path: '/archives' },
     { icon: Box, label: 'Boxes', path: '/boxes' },
+    { icon: QrCode, label: 'Scanner QR', path: '/scan' },
   ];
 
   const adminNavItems = [
@@ -99,6 +102,7 @@ const Sidebar = () => {
               </p>
             </div>
           )}
+          <NotificationBell />
         </div>
       </div>
 

@@ -10,6 +10,7 @@ import NewArchive from "./pages/NewArchive";
 import ArchivesList from "./pages/ArchivesList";
 import ArchiveDetail from "./pages/ArchiveDetail";
 import BoxesPage from "./pages/BoxesPage";
+import ScanQR from "./pages/ScanQR";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UsersManagement from "./pages/admin/UsersManagement";
 import DoctorsManagement from "./pages/admin/DoctorsManagement";
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/archives" element={<ArchivesList />} />
             <Route path="/archives/:id" element={<ArchiveDetail />} />
             <Route path="/boxes" element={<BoxesPage />} />
+            <Route path="/scan" element={<ScanQR />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<UsersManagement />} />
             <Route path="/admin/doctors" element={<DoctorsManagement />} />
