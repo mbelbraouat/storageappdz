@@ -15,7 +15,9 @@ import {
   FolderOpen,
   Shield,
   Bell,
-  QrCode
+  QrCode,
+  Thermometer,
+  Smartphone
 } from 'lucide-react';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import { useAuth } from '@/hooks/useAuth';
@@ -27,20 +29,23 @@ const Sidebar = () => {
   const location = useLocation();
 
   const mainNavItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: Plus, label: 'New Archive', path: '/archives/new' },
-    { icon: Archive, label: 'Archives List', path: '/archives' },
+    { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard' },
+    { icon: Plus, label: 'Nouvelle Archive', path: '/archives/new' },
+    { icon: Archive, label: 'Liste Archives', path: '/archives' },
     { icon: Box, label: 'Boxes', path: '/boxes' },
     { icon: QrCode, label: 'Scanner QR', path: '/scan' },
+    { icon: Thermometer, label: 'Stérilisation', path: '/sterilization' },
   ];
 
   const adminNavItems = [
     { icon: Shield, label: 'Admin Dashboard', path: '/admin' },
-    { icon: Users, label: 'Users & Roles', path: '/admin/users' },
-    { icon: Stethoscope, label: 'Doctors', path: '/admin/doctors' },
-    { icon: FileText, label: 'Operations', path: '/admin/operations' },
-    { icon: FolderOpen, label: 'File Types', path: '/admin/file-types' },
-    { icon: Settings, label: 'System Settings', path: '/admin/settings' },
+    { icon: Users, label: 'Utilisateurs', path: '/admin/users' },
+    { icon: Shield, label: 'Gestion des Rôles', path: '/admin/roles' },
+    { icon: Stethoscope, label: 'Docteurs', path: '/admin/doctors' },
+    { icon: FileText, label: 'Opérations', path: '/admin/operations' },
+    { icon: FolderOpen, label: 'Types de Fichiers', path: '/admin/file-types' },
+    { icon: Settings, label: 'Paramètres', path: '/admin/settings' },
+    { icon: Smartphone, label: 'Config. Scanner', path: '/admin/scanner' },
     { icon: Bell, label: 'Notifications', path: '/admin/notifications' },
   ];
 
