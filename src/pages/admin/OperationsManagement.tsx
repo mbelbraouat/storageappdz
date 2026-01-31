@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import DataImport from '@/components/admin/DataImport';
 import { 
   FileText, 
   Plus, 
@@ -158,16 +159,19 @@ const OperationsManagement = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
               <FileText className="w-7 h-7 text-primary" />
-              Operations Management
+              Gestion des Opérations
             </h1>
             <p className="text-muted-foreground mt-1">
-              Manage operation types for archive records
+              Gérez les types d'opérations pour les dossiers d'archives
             </p>
           </div>
-          <Button onClick={() => handleOpenDialog()} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Operation
-          </Button>
+          <div className="flex gap-2">
+            <DataImport onImportComplete={fetchOperations} />
+            <Button onClick={() => handleOpenDialog()} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Ajouter Opération
+            </Button>
+          </div>
         </div>
 
         {/* Search */}

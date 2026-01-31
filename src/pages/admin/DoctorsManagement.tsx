@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import DataImport from '@/components/admin/DataImport';
 import { 
   Stethoscope, 
   Plus, 
@@ -164,16 +165,19 @@ const DoctorsManagement = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
               <Stethoscope className="w-7 h-7 text-primary" />
-              Doctors Management
+              Gestion des Docteurs
             </h1>
             <p className="text-muted-foreground mt-1">
-              Add and manage doctors for archive records
+              Ajoutez et gérez les docteurs pour les dossiers d'archives
             </p>
           </div>
-          <Button onClick={() => handleOpenDialog()} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Doctor
-          </Button>
+          <div className="flex gap-2">
+            <DataImport onImportComplete={fetchDoctors} />
+            <Button onClick={() => handleOpenDialog()} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Ajouter Docteur
+            </Button>
+          </div>
         </div>
 
         {/* Search */}

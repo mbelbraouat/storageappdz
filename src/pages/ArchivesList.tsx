@@ -11,21 +11,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import ArchiveExport from '@/components/archives/ArchiveExport';
 import { 
   Archive, 
   Search, 
-  Filter, 
   Eye, 
   Edit,
   FileText,
   CheckCircle2,
-  XCircle,
   Calendar,
   User,
   Box,
   MapPin
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface ArchiveItem {
   id: string;
@@ -152,13 +152,16 @@ const ArchivesList = () => {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Archives</h1>
             <p className="text-muted-foreground">
-              View and manage all patient archives
+              Consultez et gérez toutes les archives patients
             </p>
           </div>
-          <Button onClick={() => navigate('/archives/new')} className="gap-2">
-            <Archive className="w-4 h-4" />
-            New Archive
-          </Button>
+          <div className="flex gap-2">
+            <ArchiveExport />
+            <Button onClick={() => navigate('/archives/new')} className="gap-2">
+              <Archive className="w-4 h-4" />
+              Nouvelle Archive
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -294,13 +297,13 @@ const ArchivesList = () => {
                           <div className="flex items-center gap-1">
                             <Calendar className="w-3 h-3 text-muted-foreground" />
                             <span className="text-sm">
-                              {format(new Date(archive.created_at), 'MMM d, yyyy')}
+                              {format(new Date(archive.created_at), 'dd MMM yyyy', { locale: fr })}
                             </span>
                           </div>
                           <div className="flex items-center gap-1 mt-1">
                             <User className="w-3 h-3 text-muted-foreground" />
                             <span className="text-xs text-muted-foreground">
-                              {archive.creator?.full_name || 'Unknown'}
+                              {archive.creator?.full_name || 'Inconnu'}
                             </span>
                           </div>
                         </td>

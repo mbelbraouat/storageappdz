@@ -673,6 +673,7 @@ const BoxesPage = () => {
               <QRCodeGenerator
                 boxId={selectedBox.id}
                 boxName={selectedBox.name}
+                boxNumber={selectedBox.box_number}
                 location={`${selectedBox.shelf}, ${selectedBox.column_position} ${selectedBox.side}`}
                 size={200}
               />
