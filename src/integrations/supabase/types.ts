@@ -308,6 +308,149 @@ export type Database = {
         }
         Relationships: []
       }
+      instrument_boxes: {
+        Row: {
+          box_code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          last_sterilized_at: string | null
+          name: string
+          next_sterilization_due: string | null
+          status: Database["public"]["Enums"]["sterilization_status"]
+          updated_at: string
+        }
+        Insert: {
+          box_code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_sterilized_at?: string | null
+          name: string
+          next_sterilization_due?: string | null
+          status?: Database["public"]["Enums"]["sterilization_status"]
+          updated_at?: string
+        }
+        Update: {
+          box_code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_sterilized_at?: string | null
+          name?: string
+          next_sterilization_due?: string | null
+          status?: Database["public"]["Enums"]["sterilization_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      instrument_movements: {
+        Row: {
+          action: string
+          box_id: string | null
+          created_at: string
+          from_status:
+            | Database["public"]["Enums"]["sterilization_status"]
+            | null
+          id: string
+          instrument_id: string | null
+          notes: string | null
+          performed_by: string
+          to_status: Database["public"]["Enums"]["sterilization_status"] | null
+        }
+        Insert: {
+          action: string
+          box_id?: string | null
+          created_at?: string
+          from_status?:
+            | Database["public"]["Enums"]["sterilization_status"]
+            | null
+          id?: string
+          instrument_id?: string | null
+          notes?: string | null
+          performed_by: string
+          to_status?: Database["public"]["Enums"]["sterilization_status"] | null
+        }
+        Update: {
+          action?: string
+          box_id?: string | null
+          created_at?: string
+          from_status?:
+            | Database["public"]["Enums"]["sterilization_status"]
+            | null
+          id?: string
+          instrument_id?: string | null
+          notes?: string | null
+          performed_by?: string
+          to_status?: Database["public"]["Enums"]["sterilization_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instrument_movements_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "instrument_boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instrument_movements_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instruments: {
+        Row: {
+          box_id: string | null
+          condition: string | null
+          created_at: string
+          description: string | null
+          id: string
+          instrument_code: string
+          is_active: boolean
+          name: string
+          status: Database["public"]["Enums"]["sterilization_status"]
+          updated_at: string
+        }
+        Insert: {
+          box_id?: string | null
+          condition?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          instrument_code: string
+          is_active?: boolean
+          name: string
+          status?: Database["public"]["Enums"]["sterilization_status"]
+          updated_at?: string
+        }
+        Update: {
+          box_id?: string | null
+          condition?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          instrument_code?: string
+          is_active?: boolean
+          name?: string
+          status?: Database["public"]["Enums"]["sterilization_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instruments_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "instrument_boxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -398,6 +541,117 @@ export type Database = {
         }
         Relationships: []
       }
+      role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          is_allowed: boolean
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_allowed?: boolean
+          permission_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_allowed?: boolean
+          permission_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sterilization_cycle_boxes: {
+        Row: {
+          box_id: string
+          created_at: string
+          cycle_id: string
+          id: string
+          result: string | null
+        }
+        Insert: {
+          box_id: string
+          created_at?: string
+          cycle_id: string
+          id?: string
+          result?: string | null
+        }
+        Update: {
+          box_id?: string
+          created_at?: string
+          cycle_id?: string
+          id?: string
+          result?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sterilization_cycle_boxes_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "instrument_boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sterilization_cycle_boxes_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "sterilization_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sterilization_cycles: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          cycle_number: number
+          duration_minutes: number | null
+          id: string
+          machine_id: string | null
+          notes: string | null
+          operator_id: string
+          pressure: number | null
+          started_at: string
+          status: string
+          temperature: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          cycle_number: number
+          duration_minutes?: number | null
+          id?: string
+          machine_id?: string | null
+          notes?: string | null
+          operator_id: string
+          pressure?: number | null
+          started_at?: string
+          status?: string
+          temperature?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          cycle_number?: number
+          duration_minutes?: number | null
+          id?: string
+          machine_id?: string | null
+          notes?: string | null
+          operator_id?: string
+          pressure?: number | null
+          started_at?: string
+          status?: string
+          temperature?: number | null
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           id: string
@@ -462,6 +716,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      sterilization_status:
+        | "dirty"
+        | "cleaning"
+        | "ready_for_sterilization"
+        | "sterilizing"
+        | "sterile"
+        | "in_use"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -590,6 +851,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      sterilization_status: [
+        "dirty",
+        "cleaning",
+        "ready_for_sterilization",
+        "sterilizing",
+        "sterile",
+        "in_use",
+      ],
     },
   },
 } as const
