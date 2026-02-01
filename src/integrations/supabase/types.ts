@@ -210,6 +210,60 @@ export type Database = {
           },
         ]
       }
+      box_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          bloc_operatoire: string | null
+          box_id: string
+          id: string
+          notes: string | null
+          requested_at: string
+          returned_at: string | null
+          service_id: string
+          status: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          bloc_operatoire?: string | null
+          box_id: string
+          id?: string
+          notes?: string | null
+          requested_at?: string
+          returned_at?: string | null
+          service_id: string
+          status?: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          bloc_operatoire?: string | null
+          box_id?: string
+          id?: string
+          notes?: string | null
+          requested_at?: string
+          returned_at?: string | null
+          service_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "box_assignments_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "instrument_boxes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "box_assignments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       box_movements: {
         Row: {
           action: string
@@ -310,42 +364,82 @@ export type Database = {
       }
       instrument_boxes: {
         Row: {
+          assigned_bloc: string | null
+          assigned_service_id: string | null
           box_code: string
           created_at: string
+          current_step: Database["public"]["Enums"]["sterilization_step"] | null
           description: string | null
           id: string
           is_active: boolean
           last_sterilized_at: string | null
           name: string
           next_sterilization_due: string | null
+          service_id: string | null
           status: Database["public"]["Enums"]["sterilization_status"]
+          sterilization_type:
+            | Database["public"]["Enums"]["sterilization_type"]
+            | null
           updated_at: string
         }
         Insert: {
+          assigned_bloc?: string | null
+          assigned_service_id?: string | null
           box_code: string
           created_at?: string
+          current_step?:
+            | Database["public"]["Enums"]["sterilization_step"]
+            | null
           description?: string | null
           id?: string
           is_active?: boolean
           last_sterilized_at?: string | null
           name: string
           next_sterilization_due?: string | null
+          service_id?: string | null
           status?: Database["public"]["Enums"]["sterilization_status"]
+          sterilization_type?:
+            | Database["public"]["Enums"]["sterilization_type"]
+            | null
           updated_at?: string
         }
         Update: {
+          assigned_bloc?: string | null
+          assigned_service_id?: string | null
           box_code?: string
           created_at?: string
+          current_step?:
+            | Database["public"]["Enums"]["sterilization_step"]
+            | null
           description?: string | null
           id?: string
           is_active?: boolean
           last_sterilized_at?: string | null
           name?: string
           next_sterilization_due?: string | null
+          service_id?: string | null
           status?: Database["public"]["Enums"]["sterilization_status"]
+          sterilization_type?:
+            | Database["public"]["Enums"]["sterilization_type"]
+            | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "instrument_boxes_assigned_service_id_fkey"
+            columns: ["assigned_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instrument_boxes_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       instrument_movements: {
         Row: {
@@ -568,6 +662,36 @@ export type Database = {
         }
         Relationships: []
       }
+      services: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sterilization_cycle_boxes: {
         Row: {
           box_id: string
@@ -652,6 +776,56 @@ export type Database = {
         }
         Relationships: []
       }
+      sterilization_workflow_log: {
+        Row: {
+          box_id: string
+          created_at: string
+          from_step: Database["public"]["Enums"]["sterilization_step"] | null
+          id: string
+          notes: string | null
+          performed_by: string
+          sterilization_type:
+            | Database["public"]["Enums"]["sterilization_type"]
+            | null
+          to_step: Database["public"]["Enums"]["sterilization_step"]
+          validation_result: string | null
+        }
+        Insert: {
+          box_id: string
+          created_at?: string
+          from_step?: Database["public"]["Enums"]["sterilization_step"] | null
+          id?: string
+          notes?: string | null
+          performed_by: string
+          sterilization_type?:
+            | Database["public"]["Enums"]["sterilization_type"]
+            | null
+          to_step: Database["public"]["Enums"]["sterilization_step"]
+          validation_result?: string | null
+        }
+        Update: {
+          box_id?: string
+          created_at?: string
+          from_step?: Database["public"]["Enums"]["sterilization_step"] | null
+          id?: string
+          notes?: string | null
+          performed_by?: string
+          sterilization_type?:
+            | Database["public"]["Enums"]["sterilization_type"]
+            | null
+          to_step?: Database["public"]["Enums"]["sterilization_step"]
+          validation_result?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sterilization_workflow_log_box_id_fkey"
+            columns: ["box_id"]
+            isOneToOne: false
+            referencedRelation: "instrument_boxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_settings: {
         Row: {
           id: string
@@ -723,6 +897,16 @@ export type Database = {
         | "sterilizing"
         | "sterile"
         | "in_use"
+      sterilization_step:
+        | "reception"
+        | "pre_disinfection"
+        | "cleaning"
+        | "conditioning"
+        | "sterilization"
+        | "control"
+        | "storage"
+        | "distribution"
+      sterilization_type: "vapeur" | "plasma" | "oxyde_ethylene" | "radiation"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -859,6 +1043,17 @@ export const Constants = {
         "sterile",
         "in_use",
       ],
+      sterilization_step: [
+        "reception",
+        "pre_disinfection",
+        "cleaning",
+        "conditioning",
+        "sterilization",
+        "control",
+        "storage",
+        "distribution",
+      ],
+      sterilization_type: ["vapeur", "plasma", "oxyde_ethylene", "radiation"],
     },
   },
 } as const
