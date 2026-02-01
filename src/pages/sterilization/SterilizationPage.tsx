@@ -28,33 +28,24 @@ import {
   Box, 
   Wrench, 
   Plus, 
-  Edit, 
-  Trash2, 
   Search,
   Loader2,
-  Play,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Droplets,
-  Zap
+  ScanLine,
+  Building2,
+  BarChart3,
+  QrCode
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-
-type SterilizationStatus = 'dirty' | 'cleaning' | 'ready_for_sterilization' | 'sterilizing' | 'sterile' | 'in_use';
-
-interface InstrumentBox {
-  id: string;
-  name: string;
-  box_code: string;
-  description: string | null;
-  status: SterilizationStatus;
-  last_sterilized_at: string | null;
-  next_sterilization_due: string | null;
-  is_active: boolean;
-  created_at: string;
-}
+import BoxCard, { 
+  type InstrumentBox, 
+  type SterilizationStatus, 
+  type SterilizationType,
+  STATUS_LABELS,
+  STERILIZATION_TYPES
+} from '@/components/sterilization/BoxCard';
+import WorkflowPanel from '@/components/sterilization/WorkflowPanel';
+import AssignmentPanel from '@/components/sterilization/AssignmentPanel';
+import StockOverview from '@/components/sterilization/StockOverview';
+import QRCodeGenerator from '@/components/boxes/QRCodeGenerator';
 
 interface Instrument {
   id: string;
@@ -65,33 +56,13 @@ interface Instrument {
   status: SterilizationStatus;
   condition: string;
   is_active: boolean;
-  created_at: string;
-  box?: InstrumentBox | null;
 }
 
-interface SterilizationCycle {
+interface Service {
   id: string;
-  cycle_number: number;
-  machine_id: string | null;
-  started_at: string;
-  completed_at: string | null;
-  temperature: number | null;
-  pressure: number | null;
-  duration_minutes: number | null;
-  status: string;
-  operator_id: string;
-  notes: string | null;
-  created_at: string;
+  name: string;
+  code: string;
 }
-
-const STATUS_LABELS: Record<SterilizationStatus, { label: string; color: string; icon: React.ReactNode }> = {
-  dirty: { label: 'Sale', color: 'bg-destructive/10 text-destructive', icon: <AlertCircle className="w-3 h-3" /> },
-  cleaning: { label: 'Nettoyage', color: 'bg-info/10 text-info', icon: <Droplets className="w-3 h-3" /> },
-  ready_for_sterilization: { label: 'Prêt', color: 'bg-warning/10 text-warning', icon: <Clock className="w-3 h-3" /> },
-  sterilizing: { label: 'En cours', color: 'bg-primary/10 text-primary', icon: <Zap className="w-3 h-3" /> },
-  sterile: { label: 'Stérile', color: 'bg-success/10 text-success', icon: <CheckCircle2 className="w-3 h-3" /> },
-  in_use: { label: 'En utilisation', color: 'bg-muted text-muted-foreground', icon: <Wrench className="w-3 h-3" /> },
-};
 
 const SterilizationPage = () => {
   const { user, isAdmin } = useAuth();
@@ -99,31 +70,31 @@ const SterilizationPage = () => {
   
   const [boxes, setBoxes] = useState<InstrumentBox[]>([]);
   const [instruments, setInstruments] = useState<Instrument[]>([]);
-  const [cycles, setCycles] = useState<SterilizationCycle[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('boxes');
+  const [activeTab, setActiveTab] = useState('workflow');
+  const [statusFilter, setStatusFilter] = useState<SterilizationStatus | 'all'>('all');
   
   // Dialogs
   const [showBoxDialog, setShowBoxDialog] = useState(false);
   const [showInstrumentDialog, setShowInstrumentDialog] = useState(false);
-  const [showCycleDialog, setShowCycleDialog] = useState(false);
+  const [showQRDialog, setShowQRDialog] = useState(false);
   const [editingBox, setEditingBox] = useState<InstrumentBox | null>(null);
   const [editingInstrument, setEditingInstrument] = useState<Instrument | null>(null);
+  const [selectedBoxForQR, setSelectedBoxForQR] = useState<InstrumentBox | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Form data
-  const [boxForm, setBoxForm] = useState({ name: '', boxCode: '', description: '' });
+  const [boxForm, setBoxForm] = useState({ 
+    name: '', 
+    boxCode: '', 
+    description: '',
+    serviceId: '',
+    sterilizationType: 'vapeur' as SterilizationType
+  });
   const [instrumentForm, setInstrumentForm] = useState({ 
     name: '', instrumentCode: '', description: '', boxId: '', condition: 'good' 
-  });
-  const [cycleForm, setCycleForm] = useState({
-    machineId: '',
-    temperature: '',
-    pressure: '',
-    durationMinutes: '',
-    notes: '',
-    selectedBoxes: [] as string[],
   });
 
   useEffect(() => {
@@ -132,19 +103,23 @@ const SterilizationPage = () => {
 
   const fetchData = async () => {
     try {
-      const [boxesRes, instrumentsRes, cyclesRes] = await Promise.all([
-        supabase.from('instrument_boxes').select('*').eq('is_active', true).order('name'),
-        supabase.from('instruments').select('*, box:instrument_boxes(*)').eq('is_active', true).order('name'),
-        supabase.from('sterilization_cycles').select('*').order('created_at', { ascending: false }).limit(50),
+      const [boxesRes, instrumentsRes, servicesRes] = await Promise.all([
+        supabase
+          .from('instrument_boxes')
+          .select('*, service:services!instrument_boxes_service_id_fkey(name, code), assigned_service:services!instrument_boxes_assigned_service_id_fkey(name, code)')
+          .eq('is_active', true)
+          .order('name'),
+        supabase.from('instruments').select('*').eq('is_active', true).order('name'),
+        supabase.from('services').select('*').eq('is_active', true).order('name'),
       ]);
 
       if (boxesRes.error) throw boxesRes.error;
       if (instrumentsRes.error) throw instrumentsRes.error;
-      if (cyclesRes.error) throw cyclesRes.error;
+      if (servicesRes.error) throw servicesRes.error;
 
       setBoxes((boxesRes.data as unknown as InstrumentBox[]) || []);
       setInstruments((instrumentsRes.data as unknown as Instrument[]) || []);
-      setCycles((cyclesRes.data as unknown as SterilizationCycle[]) || []);
+      setServices(servicesRes.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -156,10 +131,16 @@ const SterilizationPage = () => {
   const handleOpenBoxDialog = (box?: InstrumentBox) => {
     if (box) {
       setEditingBox(box);
-      setBoxForm({ name: box.name, boxCode: box.box_code, description: box.description || '' });
+      setBoxForm({ 
+        name: box.name, 
+        boxCode: box.box_code, 
+        description: box.description || '',
+        serviceId: box.service_id || '',
+        sterilizationType: box.sterilization_type || 'vapeur'
+      });
     } else {
       setEditingBox(null);
-      setBoxForm({ name: '', boxCode: '', description: '' });
+      setBoxForm({ name: '', boxCode: '', description: '', serviceId: '', sterilizationType: 'vapeur' });
     }
     setShowBoxDialog(true);
   };
@@ -176,6 +157,8 @@ const SterilizationPage = () => {
         name: boxForm.name.trim(),
         box_code: boxForm.boxCode.trim(),
         description: boxForm.description.trim() || null,
+        service_id: boxForm.serviceId || null,
+        sterilization_type: boxForm.sterilizationType,
       };
 
       if (editingBox) {
@@ -183,9 +166,13 @@ const SterilizationPage = () => {
         if (error) throw error;
         toast({ title: 'Boîte mise à jour' });
       } else {
-        const { error } = await supabase.from('instrument_boxes').insert(data);
+        const { error } = await supabase.from('instrument_boxes').insert({
+          ...data,
+          current_step: 'reception',
+          status: 'dirty',
+        });
         if (error) throw error;
-        toast({ title: 'Boîte créée' });
+        toast({ title: 'Boîte créée', description: 'N\'oubliez pas de générer le code-barres' });
       }
 
       setShowBoxDialog(false);
@@ -211,9 +198,13 @@ const SterilizationPage = () => {
 
   const handleUpdateBoxStatus = async (box: InstrumentBox, newStatus: SterilizationStatus) => {
     try {
-      const updates: Partial<InstrumentBox> = { status: newStatus };
+      const updates: Record<string, unknown> = { status: newStatus };
       if (newStatus === 'sterile') {
         updates.last_sterilized_at = new Date().toISOString();
+        updates.current_step = 'storage';
+      }
+      if (newStatus === 'dirty') {
+        updates.current_step = 'reception';
       }
 
       const { error } = await supabase.from('instrument_boxes').update(updates).eq('id', box.id);
@@ -235,6 +226,11 @@ const SterilizationPage = () => {
     } catch (error: any) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     }
+  };
+
+  const handleShowQR = (box: InstrumentBox) => {
+    setSelectedBoxForQR(box);
+    setShowQRDialog(true);
   };
 
   // Instrument handlers
@@ -290,567 +286,322 @@ const SterilizationPage = () => {
     }
   };
 
-  // Cycle handlers
-  const handleStartCycle = async () => {
-    if (cycleForm.selectedBoxes.length === 0) {
-      toast({ title: 'Erreur', description: 'Sélectionnez au moins une boîte', variant: 'destructive' });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // Get next cycle number
-      const { data: maxCycle } = await supabase
-        .from('sterilization_cycles')
-        .select('cycle_number')
-        .order('cycle_number', { ascending: false })
-        .limit(1);
-      
-      const nextCycleNumber = (maxCycle?.[0]?.cycle_number || 0) + 1;
-
-      const { data: cycle, error: cycleError } = await supabase.from('sterilization_cycles').insert({
-        cycle_number: nextCycleNumber,
-        machine_id: cycleForm.machineId || null,
-        temperature: cycleForm.temperature ? parseFloat(cycleForm.temperature) : null,
-        pressure: cycleForm.pressure ? parseFloat(cycleForm.pressure) : null,
-        duration_minutes: cycleForm.durationMinutes ? parseInt(cycleForm.durationMinutes) : null,
-        notes: cycleForm.notes || null,
-        operator_id: user!.id,
-        status: 'in_progress',
-      }).select().single();
-
-      if (cycleError) throw cycleError;
-
-      // Link boxes to cycle
-      const cycleBoxes = cycleForm.selectedBoxes.map(boxId => ({
-        cycle_id: cycle.id,
-        box_id: boxId,
-      }));
-
-      const { error: linkError } = await supabase.from('sterilization_cycle_boxes').insert(cycleBoxes);
-      if (linkError) throw linkError;
-
-      // Update box statuses
-      await supabase
-        .from('instrument_boxes')
-        .update({ status: 'sterilizing' })
-        .in('id', cycleForm.selectedBoxes);
-
-      toast({ title: 'Cycle démarré', description: `Cycle #${nextCycleNumber}` });
-      setShowCycleDialog(false);
-      setCycleForm({ machineId: '', temperature: '', pressure: '', durationMinutes: '', notes: '', selectedBoxes: [] });
-      fetchData();
-    } catch (error: any) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCompleteCycle = async (cycle: SterilizationCycle) => {
-    try {
-      // Update cycle
-      const { error: cycleError } = await supabase
-        .from('sterilization_cycles')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
-        .eq('id', cycle.id);
-      if (cycleError) throw cycleError;
-
-      // Get boxes in cycle
-      const { data: cycleBoxes } = await supabase
-        .from('sterilization_cycle_boxes')
-        .select('box_id')
-        .eq('cycle_id', cycle.id);
-
-      if (cycleBoxes && cycleBoxes.length > 0) {
-        const boxIds = cycleBoxes.map(cb => cb.box_id);
-        await supabase
-          .from('instrument_boxes')
-          .update({ status: 'sterile', last_sterilized_at: new Date().toISOString() })
-          .in('id', boxIds);
-      }
-
-      toast({ title: 'Cycle terminé', description: 'Les boîtes sont maintenant stériles.' });
-      fetchData();
-    } catch (error: any) {
-      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
-    }
-  };
-
   // Filters
-  const filteredBoxes = boxes.filter(b => 
-    b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    b.box_code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredBoxes = boxes.filter(b => {
+    const matchesSearch = b.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.box_code.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-  const filteredInstruments = instruments.filter(i =>
-    i.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    i.instrument_code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const sterileBoxes = boxes.filter(b => b.status === 'sterile' && !b.assigned_service_id);
 
-  const readyBoxes = boxes.filter(b => b.status === 'ready_for_sterilization');
+  const getInstrumentCount = (boxId: string) => 
+    instruments.filter(i => i.box_id === boxId).length;
 
   return (
-    <AppLayout requireAdmin>
+    <AppLayout>
       <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
               <Thermometer className="w-7 h-7 text-primary" />
-              Gestion de la Stérilisation
+              Stérilisation
             </h1>
             <p className="text-muted-foreground mt-1">
-              Gérez les instruments, boîtes et cycles de stérilisation
+              Gestion du workflow de stérilisation des instruments
             </p>
           </div>
-          {readyBoxes.length > 0 && (
-            <Button onClick={() => setShowCycleDialog(true)} className="gap-2">
-              <Play className="w-4 h-4" />
-              Démarrer un cycle ({readyBoxes.length} prêtes)
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => handleOpenInstrumentDialog()} className="gap-2">
+              <Wrench className="w-4 h-4" />
+              <span className="hidden sm:inline">Nouvel instrument</span>
             </Button>
-          )}
-        </div>
-
-        {/* Search */}
-        <div className="card-stats">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+            <Button onClick={() => handleOpenBoxDialog()} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Nouvelle boîte
+            </Button>
           </div>
         </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+            <TabsTrigger value="workflow" className="gap-2">
+              <ScanLine className="w-4 h-4" /> Workflow
+            </TabsTrigger>
+            <TabsTrigger value="stock" className="gap-2">
+              <BarChart3 className="w-4 h-4" /> Stock
+            </TabsTrigger>
             <TabsTrigger value="boxes" className="gap-2">
               <Box className="w-4 h-4" /> Boîtes
             </TabsTrigger>
-            <TabsTrigger value="instruments" className="gap-2">
-              <Wrench className="w-4 h-4" /> Instruments
-            </TabsTrigger>
-            <TabsTrigger value="cycles" className="gap-2">
-              <Thermometer className="w-4 h-4" /> Cycles
+            <TabsTrigger value="assignments" className="gap-2">
+              <Building2 className="w-4 h-4" /> Affectations
             </TabsTrigger>
           </TabsList>
 
+          {/* Workflow Tab */}
+          <TabsContent value="workflow" className="mt-6">
+            <WorkflowPanel onBoxProcessed={fetchData} />
+          </TabsContent>
+
+          {/* Stock Tab */}
+          <TabsContent value="stock" className="mt-6">
+            <StockOverview boxes={boxes} />
+          </TabsContent>
+
           {/* Boxes Tab */}
           <TabsContent value="boxes" className="mt-4">
-            <div className="flex justify-end mb-4">
-              <Button onClick={() => handleOpenBoxDialog()} className="gap-2">
-                <Plus className="w-4 h-4" /> Nouvelle boîte
-              </Button>
-            </div>
-
-            {isLoading ? (
-              <div className="text-center py-8">Chargement...</div>
-            ) : filteredBoxes.length === 0 ? (
-              <div className="card-stats text-center py-12">
-                <Box className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-muted-foreground">Aucune boîte d'instruments</p>
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher une boîte..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredBoxes.map(box => {
-                  const statusInfo = STATUS_LABELS[box.status];
-                  return (
-                    <div key={box.id} className="card-stats">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="font-semibold">{box.name}</h3>
-                          <p className="text-xs text-muted-foreground">{box.box_code}</p>
-                        </div>
-                        <span className={`status-badge ${statusInfo.color} gap-1`}>
-                          {statusInfo.icon}
-                          {statusInfo.label}
-                        </span>
-                      </div>
-
-                      {box.description && (
-                        <p className="text-sm text-muted-foreground mb-3">{box.description}</p>
-                      )}
-
-                      {box.last_sterilized_at && (
-                        <p className="text-xs text-muted-foreground mb-3">
-                          Dernière stérilisation: {format(new Date(box.last_sterilized_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
-                        </p>
-                      )}
-
-                      <div className="flex items-center justify-between pt-3 border-t">
-                        <Select
-                          value={box.status}
-                          onValueChange={(v: SterilizationStatus) => handleUpdateBoxStatus(box, v)}
-                        >
-                          <SelectTrigger className="w-[140px] h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="dirty">Sale</SelectItem>
-                            <SelectItem value="cleaning">Nettoyage</SelectItem>
-                            <SelectItem value="ready_for_sterilization">Prêt</SelectItem>
-                            <SelectItem value="sterile">Stérile</SelectItem>
-                            <SelectItem value="in_use">En utilisation</SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleOpenBoxDialog(box)}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleDeleteBox(box)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Instruments Tab */}
-          <TabsContent value="instruments" className="mt-4">
-            <div className="flex justify-end mb-4">
-              <Button onClick={() => handleOpenInstrumentDialog()} className="gap-2">
-                <Plus className="w-4 h-4" /> Nouvel instrument
-              </Button>
-            </div>
-
-            {filteredInstruments.length === 0 ? (
-              <div className="card-stats text-center py-12">
-                <Wrench className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-muted-foreground">Aucun instrument</p>
-              </div>
-            ) : (
-              <div className="card-stats overflow-hidden p-0">
-                <table className="table-medical">
-                  <thead>
-                    <tr>
-                      <th>Instrument</th>
-                      <th>Code</th>
-                      <th>Boîte</th>
-                      <th>État</th>
-                      <th>Statut</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredInstruments.map(instrument => {
-                      const statusInfo = STATUS_LABELS[instrument.status];
-                      return (
-                        <tr key={instrument.id}>
-                          <td className="font-medium">{instrument.name}</td>
-                          <td className="text-muted-foreground">{instrument.instrument_code}</td>
-                          <td>{instrument.box?.name || '-'}</td>
-                          <td className="capitalize">{instrument.condition}</td>
-                          <td>
-                            <span className={`status-badge ${statusInfo.color} gap-1`}>
-                              {statusInfo.icon}
-                              {statusInfo.label}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => handleOpenInstrumentDialog(instrument)}>
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Cycles Tab */}
-          <TabsContent value="cycles" className="mt-4">
-            {cycles.length === 0 ? (
-              <div className="card-stats text-center py-12">
-                <Thermometer className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-muted-foreground">Aucun cycle de stérilisation</p>
-              </div>
-            ) : (
-              <div className="card-stats overflow-hidden p-0">
-                <table className="table-medical">
-                  <thead>
-                    <tr>
-                      <th>Cycle</th>
-                      <th>Machine</th>
-                      <th>Température</th>
-                      <th>Durée</th>
-                      <th>Statut</th>
-                      <th>Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cycles.map(cycle => (
-                      <tr key={cycle.id}>
-                        <td className="font-medium">#{cycle.cycle_number}</td>
-                        <td>{cycle.machine_id || '-'}</td>
-                        <td>{cycle.temperature ? `${cycle.temperature}°C` : '-'}</td>
-                        <td>{cycle.duration_minutes ? `${cycle.duration_minutes} min` : '-'}</td>
-                        <td>
-                          <span className={`status-badge ${
-                            cycle.status === 'completed' ? 'status-badge-success' : 'status-badge-warning'
-                          }`}>
-                            {cycle.status === 'completed' ? 'Terminé' : 'En cours'}
-                          </span>
-                        </td>
-                        <td>{format(new Date(cycle.started_at), 'dd/MM/yyyy HH:mm', { locale: fr })}</td>
-                        <td>
-                          {cycle.status === 'in_progress' && (
-                            <Button size="sm" onClick={() => handleCompleteCycle(cycle)} className="gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Terminer
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Box Dialog */}
-      <Dialog open={showBoxDialog} onOpenChange={setShowBoxDialog}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>{editingBox ? 'Modifier la boîte' : 'Nouvelle boîte'}</DialogTitle>
-            <DialogDescription>
-              Entrez les informations de la boîte d'instruments.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nom *</Label>
-              <Input
-                value={boxForm.name}
-                onChange={(e) => setBoxForm({ ...boxForm, name: e.target.value })}
-                placeholder="Ex: Boîte Chirurgie A"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Code *</Label>
-              <Input
-                value={boxForm.boxCode}
-                onChange={(e) => setBoxForm({ ...boxForm, boxCode: e.target.value })}
-                placeholder="Ex: CHIR-001"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                value={boxForm.description}
-                onChange={(e) => setBoxForm({ ...boxForm, description: e.target.value })}
-                placeholder="Description optionnelle..."
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBoxDialog(false)}>Annuler</Button>
-            <Button onClick={handleSaveBox} disabled={isSaving}>
-              {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              {editingBox ? 'Modifier' : 'Créer'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Instrument Dialog */}
-      <Dialog open={showInstrumentDialog} onOpenChange={setShowInstrumentDialog}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>{editingInstrument ? 'Modifier l\'instrument' : 'Nouvel instrument'}</DialogTitle>
-            <DialogDescription>
-              Entrez les informations de l'instrument.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nom *</Label>
-              <Input
-                value={instrumentForm.name}
-                onChange={(e) => setInstrumentForm({ ...instrumentForm, name: e.target.value })}
-                placeholder="Ex: Pince hémostatique"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Code *</Label>
-              <Input
-                value={instrumentForm.instrumentCode}
-                onChange={(e) => setInstrumentForm({ ...instrumentForm, instrumentCode: e.target.value })}
-                placeholder="Ex: PINCE-001"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Boîte d'appartenance</Label>
-              <Select
-                value={instrumentForm.boxId}
-                onValueChange={(v) => setInstrumentForm({ ...instrumentForm, boxId: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Aucune boîte" />
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as SterilizationStatus | 'all')}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filtrer par statut" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucune boîte</SelectItem>
-                  {boxes.map(box => (
-                    <SelectItem key={box.id} value={box.id}>{box.name}</SelectItem>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  {Object.entries(STATUS_LABELS).map(([status, info]) => (
+                    <SelectItem key={status} value={status}>
+                      <span className="flex items-center gap-2">
+                        {info.icon} {info.label}
+                      </span>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>État</Label>
-              <Select
-                value={instrumentForm.condition}
-                onValueChange={(v) => setInstrumentForm({ ...instrumentForm, condition: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="good">Bon état</SelectItem>
-                  <SelectItem value="worn">Usé</SelectItem>
-                  <SelectItem value="damaged">Endommagé</SelectItem>
-                  <SelectItem value="needs_repair">À réparer</SelectItem>
-                </SelectContent>
-              </Select>
+
+            {isLoading ? (
+              <div className="text-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+              </div>
+            ) : filteredBoxes.length === 0 ? (
+              <div className="bg-card border rounded-lg text-center py-12">
+                <Box className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p className="text-muted-foreground">Aucune boîte d'instruments</p>
+                <Button variant="outline" className="mt-4" onClick={() => handleOpenBoxDialog()}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Créer une boîte
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredBoxes.map(box => (
+                  <BoxCard
+                    key={box.id}
+                    box={box}
+                    isAdmin={isAdmin}
+                    onEdit={handleOpenBoxDialog}
+                    onDelete={handleDeleteBox}
+                    onStatusChange={handleUpdateBoxStatus}
+                    onShowQR={handleShowQR}
+                    instrumentCount={getInstrumentCount(box.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Assignments Tab */}
+          <TabsContent value="assignments" className="mt-6">
+            <AssignmentPanel 
+              sterileBoxes={sterileBoxes} 
+              onAssignmentChange={fetchData} 
+            />
+          </TabsContent>
+        </Tabs>
+
+        {/* Box Dialog */}
+        <Dialog open={showBoxDialog} onOpenChange={setShowBoxDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{editingBox ? 'Modifier la boîte' : 'Nouvelle boîte d\'instruments'}</DialogTitle>
+              <DialogDescription>
+                {editingBox ? 'Modifiez les informations' : 'Créez une nouvelle boîte pour la stérilisation'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nom de la boîte *</Label>
+                <Input
+                  value={boxForm.name}
+                  onChange={(e) => setBoxForm({ ...boxForm, name: e.target.value })}
+                  placeholder="Ex: Boîte Chirurgie Générale"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Code boîte * (pour scan)</Label>
+                <Input
+                  value={boxForm.boxCode}
+                  onChange={(e) => setBoxForm({ ...boxForm, boxCode: e.target.value.toUpperCase() })}
+                  placeholder="Ex: BOX-001"
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Service d'appartenance</Label>
+                <Select 
+                  value={boxForm.serviceId} 
+                  onValueChange={(v) => setBoxForm({ ...boxForm, serviceId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un service" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Aucun</SelectItem>
+                    {services.map((service) => (
+                      <SelectItem key={service.id} value={service.id}>
+                        {service.name} ({service.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Type de stérilisation par défaut</Label>
+                <Select 
+                  value={boxForm.sterilizationType} 
+                  onValueChange={(v) => setBoxForm({ ...boxForm, sterilizationType: v as SterilizationType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(STERILIZATION_TYPES).map(([type, label]) => (
+                      <SelectItem key={type} value={type}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={boxForm.description}
+                  onChange={(e) => setBoxForm({ ...boxForm, description: e.target.value })}
+                  placeholder="Contenu, usage..."
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                value={instrumentForm.description}
-                onChange={(e) => setInstrumentForm({ ...instrumentForm, description: e.target.value })}
-                placeholder="Description optionnelle..."
-                rows={2}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowBoxDialog(false)}>Annuler</Button>
+              <Button onClick={handleSaveBox} disabled={isSaving}>
+                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {editingBox ? 'Mettre à jour' : 'Créer'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Instrument Dialog */}
+        <Dialog open={showInstrumentDialog} onOpenChange={setShowInstrumentDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{editingInstrument ? 'Modifier l\'instrument' : 'Nouvel instrument'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nom *</Label>
+                <Input
+                  value={instrumentForm.name}
+                  onChange={(e) => setInstrumentForm({ ...instrumentForm, name: e.target.value })}
+                  placeholder="Ex: Pince hémostatique"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Code instrument *</Label>
+                <Input
+                  value={instrumentForm.instrumentCode}
+                  onChange={(e) => setInstrumentForm({ ...instrumentForm, instrumentCode: e.target.value.toUpperCase() })}
+                  placeholder="Ex: INST-001"
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Boîte d'appartenance</Label>
+                <Select 
+                  value={instrumentForm.boxId} 
+                  onValueChange={(v) => setInstrumentForm({ ...instrumentForm, boxId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une boîte" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Aucune</SelectItem>
+                    {boxes.map((box) => (
+                      <SelectItem key={box.id} value={box.id}>{box.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>État</Label>
+                <Select 
+                  value={instrumentForm.condition} 
+                  onValueChange={(v) => setInstrumentForm({ ...instrumentForm, condition: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="good">Bon état</SelectItem>
+                    <SelectItem value="worn">Usé</SelectItem>
+                    <SelectItem value="damaged">Endommagé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={instrumentForm.description}
+                  onChange={(e) => setInstrumentForm({ ...instrumentForm, description: e.target.value })}
+                  placeholder="Description de l'instrument"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowInstrumentDialog(false)}>Annuler</Button>
+              <Button onClick={handleSaveInstrument} disabled={isSaving}>
+                {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {editingInstrument ? 'Mettre à jour' : 'Créer'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* QR Code Dialog */}
+        <Dialog open={showQRDialog} onOpenChange={setShowQRDialog}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <QrCode className="w-5 h-5" />
+                Code-barres
+              </DialogTitle>
+              <DialogDescription>
+                Imprimez ou téléchargez le code-barres
+              </DialogDescription>
+            </DialogHeader>
+            {selectedBoxForQR && (
+              <QRCodeGenerator
+                boxId={selectedBoxForQR.id}
+                boxName={selectedBoxForQR.name}
+                boxNumber={null}
+                location={selectedBoxForQR.box_code}
+                size={180}
               />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowInstrumentDialog(false)}>Annuler</Button>
-            <Button onClick={handleSaveInstrument} disabled={isSaving}>
-              {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              {editingInstrument ? 'Modifier' : 'Créer'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Cycle Dialog */}
-      <Dialog open={showCycleDialog} onOpenChange={setShowCycleDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Démarrer un cycle de stérilisation</DialogTitle>
-            <DialogDescription>
-              Sélectionnez les boîtes à stériliser et entrez les paramètres.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Boîtes à stériliser *</Label>
-              <div className="border rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
-                {readyBoxes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Aucune boîte prête pour la stérilisation</p>
-                ) : (
-                  readyBoxes.map(box => (
-                    <label key={box.id} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={cycleForm.selectedBoxes.includes(box.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setCycleForm({ ...cycleForm, selectedBoxes: [...cycleForm.selectedBoxes, box.id] });
-                          } else {
-                            setCycleForm({ ...cycleForm, selectedBoxes: cycleForm.selectedBoxes.filter(id => id !== box.id) });
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{box.name} ({box.box_code})</span>
-                    </label>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Machine</Label>
-                <Input
-                  value={cycleForm.machineId}
-                  onChange={(e) => setCycleForm({ ...cycleForm, machineId: e.target.value })}
-                  placeholder="Ex: Autoclave-01"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Durée (min)</Label>
-                <Input
-                  type="number"
-                  value={cycleForm.durationMinutes}
-                  onChange={(e) => setCycleForm({ ...cycleForm, durationMinutes: e.target.value })}
-                  placeholder="Ex: 20"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Température (°C)</Label>
-                <Input
-                  type="number"
-                  value={cycleForm.temperature}
-                  onChange={(e) => setCycleForm({ ...cycleForm, temperature: e.target.value })}
-                  placeholder="Ex: 134"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Pression (bar)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={cycleForm.pressure}
-                  onChange={(e) => setCycleForm({ ...cycleForm, pressure: e.target.value })}
-                  placeholder="Ex: 2.1"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea
-                value={cycleForm.notes}
-                onChange={(e) => setCycleForm({ ...cycleForm, notes: e.target.value })}
-                placeholder="Notes optionnelles..."
-                rows={2}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCycleDialog(false)}>Annuler</Button>
-            <Button onClick={handleStartCycle} disabled={isSaving || cycleForm.selectedBoxes.length === 0}>
-              {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              <Play className="w-4 h-4 mr-2" />
-              Démarrer le cycle
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
     </AppLayout>
   );
 };
