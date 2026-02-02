@@ -527,18 +527,17 @@ const SterilizationPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Boîte d'appartenance</Label>
+                <Label>Boîte d'appartenance <span className="text-destructive">*</span></Label>
                 <Select 
-                  value={instrumentForm.boxId || 'none'} 
-                  onValueChange={(v) => setInstrumentForm({ ...instrumentForm, boxId: v === 'none' ? '' : v })}
+                  value={instrumentForm.boxId} 
+                  onValueChange={(v) => setInstrumentForm({ ...instrumentForm, boxId: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une boîte" />
+                    <SelectValue placeholder="Sélectionner une boîte (obligatoire)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Aucune</SelectItem>
                     {boxes.map((box) => (
-                      <SelectItem key={box.id} value={box.id}>{box.name}</SelectItem>
+                      <SelectItem key={box.id} value={box.id}>{box.name} ({box.box_code})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
