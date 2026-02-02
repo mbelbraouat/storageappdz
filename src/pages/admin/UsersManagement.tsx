@@ -249,25 +249,30 @@ const UsersManagement = () => {
     setIsSaving(true);
 
     try {
-      // Delete profile (this will cascade to user_roles due to FK)
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', deletingUser.user_id);
+      // Call edge function to delete user completely
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionData.session?.access_token}`,
+          },
+          body: JSON.stringify({ userId: deletingUser.user_id }),
+        }
+      );
 
-      if (profileError) throw profileError;
+      const result = await response.json();
 
-      // Delete role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', deletingUser.user_id);
-
-      if (roleError) console.error('Role deletion error:', roleError);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete user');
+      }
 
       toast({
-        title: 'User deleted',
-        description: `${deletingUser.full_name} has been removed.`,
+        title: 'Utilisateur supprimé',
+        description: `${deletingUser.full_name} a été supprimé définitivement.`,
       });
 
       setShowDeleteDialog(false);
@@ -276,8 +281,8 @@ const UsersManagement = () => {
     } catch (error: any) {
       console.error('Error deleting user:', error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete user',
+        title: 'Erreur',
+        description: error.message || 'Échec de la suppression',
         variant: 'destructive',
       });
     } finally {
