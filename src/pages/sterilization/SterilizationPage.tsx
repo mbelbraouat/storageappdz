@@ -451,14 +451,14 @@ const SterilizationPage = () => {
               <div className="space-y-2">
                 <Label>Service d'appartenance</Label>
                 <Select 
-                  value={boxForm.serviceId} 
-                  onValueChange={(v) => setBoxForm({ ...boxForm, serviceId: v })}
+                  value={boxForm.serviceId || 'none'} 
+                  onValueChange={(v) => setBoxForm({ ...boxForm, serviceId: v === 'none' ? '' : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un service" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     {services.map((service) => (
                       <SelectItem key={service.id} value={service.id}>
                         {service.name} ({service.code})
