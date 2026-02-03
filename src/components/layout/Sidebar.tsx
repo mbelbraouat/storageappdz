@@ -17,7 +17,9 @@ import {
   Bell,
   QrCode,
   Thermometer,
-  Smartphone
+  Smartphone,
+  FlaskConical,
+  Wrench
 } from 'lucide-react';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,17 +27,24 @@ import { cn } from '@/lib/utils';
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const { isAdmin, profile, signOut } = useAuth();
+  const { isAdmin, isInstrumentiste, canAccessSterilization, profile, signOut } = useAuth();
   const location = useLocation();
 
+  // Main nav items - show sterilization items for instrumentiste
   const mainNavItems = [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard' },
-    { icon: Plus, label: 'Nouvelle Archive', path: '/archives/new' },
-    { icon: Archive, label: 'Liste Archives', path: '/archives' },
-    { icon: Box, label: 'Boxes', path: '/boxes' },
+    { icon: Plus, label: 'Nouvelle Archive', path: '/archives/new', hideForInstrumentiste: true },
+    { icon: Archive, label: 'Liste Archives', path: '/archives', hideForInstrumentiste: true },
+    { icon: Box, label: 'Boxes', path: '/boxes', hideForInstrumentiste: true },
     { icon: QrCode, label: 'Scanner QR', path: '/scan' },
-    { icon: Thermometer, label: 'Stérilisation', path: '/sterilization' },
   ];
+
+  // Sterilization items - visible to admin and instrumentiste
+  const sterilizationNavItems = canAccessSterilization ? [
+    { icon: Thermometer, label: 'Dashboard Stérili.', path: '/sterilization/dashboard' },
+    { icon: Thermometer, label: 'Workflow', path: '/sterilization' },
+    { icon: Wrench, label: 'Instruments', path: '/sterilization/instruments' },
+  ] : [];
 
   const adminNavItems = [
     { icon: Shield, label: 'Admin Dashboard', path: '/admin' },
@@ -44,6 +53,7 @@ const Sidebar = () => {
     { icon: Stethoscope, label: 'Docteurs', path: '/admin/doctors' },
     { icon: FileText, label: 'Opérations', path: '/admin/operations' },
     { icon: FolderOpen, label: 'Types de Fichiers', path: '/admin/file-types' },
+    { icon: FlaskConical, label: 'Techniques Stérili.', path: '/admin/sterilization-techniques' },
     { icon: Settings, label: 'Paramètres', path: '/admin/settings' },
     { icon: Smartphone, label: 'Config. Scanner', path: '/admin/scanner' },
     { icon: Bell, label: 'Notifications', path: '/admin/notifications' },
@@ -103,7 +113,7 @@ const Sidebar = () => {
                 {profile?.full_name || 'User'}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                {isAdmin ? 'Administrator' : 'User'}
+                {isAdmin ? 'Administrateur' : isInstrumentiste ? 'Instrumentiste' : 'Utilisateur'}
               </p>
             </div>
           )}
@@ -120,7 +130,9 @@ const Sidebar = () => {
               Main Menu
             </p>
           )}
-          {mainNavItems.map((item) => (
+          {mainNavItems
+            .filter(item => !isInstrumentiste || !('hideForInstrumentiste' in item && item.hideForInstrumentiste))
+            .map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
@@ -136,6 +148,32 @@ const Sidebar = () => {
             </NavLink>
           ))}
         </div>
+
+        {/* Sterilization Navigation */}
+        {sterilizationNavItems.length > 0 && (
+          <div className="mb-4 pt-4 border-t border-sidebar-border">
+            {!collapsed && (
+              <p className="px-3 mb-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+                Stérilisation
+              </p>
+            )}
+            {sterilizationNavItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "sidebar-nav-item",
+                  isActive(item.path) && "active",
+                  collapsed && "justify-center px-2"
+                )}
+                title={collapsed ? item.label : undefined}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </NavLink>
+            ))}
+          </div>
+        )}
 
         {/* Admin Navigation */}
         {isAdmin && (

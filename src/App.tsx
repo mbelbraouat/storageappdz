@@ -20,7 +20,10 @@ import SystemSettings from "./pages/admin/SystemSettings";
 import NotificationsSettings from "./pages/admin/NotificationsSettings";
 import RolesManagement from "./pages/admin/RolesManagement";
 import ScannerSettings from "./pages/admin/ScannerSettings";
+import SterilizationTechniques from "./pages/admin/SterilizationTechniques";
 import SterilizationPage from "./pages/sterilization/SterilizationPage";
+import SterilizationDashboard from "./pages/sterilization/SterilizationDashboard";
+import InstrumentsList from "./pages/sterilization/InstrumentsList";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,12 +45,15 @@ const App = () => (
             <Route path="/boxes" element={<BoxesPage />} />
             <Route path="/scan" element={<ScanQR />} />
             <Route path="/sterilization" element={<SterilizationPage />} />
+            <Route path="/sterilization/dashboard" element={<SterilizationDashboard />} />
+            <Route path="/sterilization/instruments" element={<InstrumentsList />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<UsersManagement />} />
             <Route path="/admin/roles" element={<RolesManagement />} />
             <Route path="/admin/doctors" element={<DoctorsManagement />} />
             <Route path="/admin/operations" element={<OperationsManagement />} />
             <Route path="/admin/file-types" element={<FileTypesManagement />} />
+            <Route path="/admin/sterilization-techniques" element={<SterilizationTechniques />} />
             <Route path="/admin/settings" element={<SystemSettings />} />
             <Route path="/admin/scanner" element={<ScannerSettings />} />
             <Route path="/admin/notifications" element={<NotificationsSettings />} />
