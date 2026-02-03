@@ -2,12 +2,16 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+type AppRole = 'admin' | 'user' | 'instrumentiste';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   isAdmin: boolean;
-  userRole: 'admin' | 'user' | null;
+  isInstrumentiste: boolean;
+  canAccessSterilization: boolean;
+  userRole: AppRole | null;
   profile: { full_name: string; avatar_url: string | null } | null;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
@@ -22,7 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [userRole, setUserRole] = useState<'admin' | 'user' | null>(null);
+  const [isInstrumentiste, setIsInstrumentiste] = useState(false);
+  const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null } | null>(null);
 
   const fetchUserRole = async (userId: string) => {
@@ -33,10 +38,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
     
     if (!error && data) {
-      setUserRole(data.role as 'admin' | 'user');
+      setUserRole(data.role as AppRole);
       setIsAdmin(data.role === 'admin');
+      setIsInstrumentiste(data.role === 'instrumentiste');
     }
   };
+
+  const canAccessSterilization = isAdmin || isInstrumentiste;
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -63,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }, 0);
         } else {
           setIsAdmin(false);
+          setIsInstrumentiste(false);
           setUserRole(null);
           setProfile(null);
         }
@@ -117,6 +126,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       isLoading,
       isAdmin,
+      isInstrumentiste,
+      canAccessSterilization,
       userRole,
       profile,
       signIn,

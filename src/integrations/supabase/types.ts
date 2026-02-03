@@ -380,6 +380,7 @@ export type Database = {
           sterilization_type:
             | Database["public"]["Enums"]["sterilization_type"]
             | null
+          technique_id: string | null
           updated_at: string
         }
         Insert: {
@@ -401,6 +402,7 @@ export type Database = {
           sterilization_type?:
             | Database["public"]["Enums"]["sterilization_type"]
             | null
+          technique_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -422,6 +424,7 @@ export type Database = {
           sterilization_type?:
             | Database["public"]["Enums"]["sterilization_type"]
             | null
+          technique_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -437,6 +440,13 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instrument_boxes_technique_id_fkey"
+            columns: ["technique_id"]
+            isOneToOne: false
+            referencedRelation: "sterilization_techniques"
             referencedColumns: ["id"]
           },
         ]
@@ -503,6 +513,7 @@ export type Database = {
           box_id: string | null
           condition: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           instrument_code: string
@@ -515,6 +526,7 @@ export type Database = {
           box_id?: string | null
           condition?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           instrument_code: string
@@ -527,6 +539,7 @@ export type Database = {
           box_id?: string | null
           condition?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           instrument_code?: string
@@ -776,6 +789,45 @@ export type Database = {
         }
         Relationships: []
       }
+      sterilization_techniques: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          is_active: boolean
+          name: string
+          pressure: number | null
+          temperature: number | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          pressure?: number | null
+          temperature?: number | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          pressure?: number | null
+          temperature?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sterilization_workflow_log: {
         Row: {
           box_id: string
@@ -876,6 +928,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_sterilization: { Args: { _user_id: string }; Returns: boolean }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -889,7 +942,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "instrumentiste"
       sterilization_status:
         | "dirty"
         | "cleaning"
@@ -1034,7 +1087,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "instrumentiste"],
       sterilization_status: [
         "dirty",
         "cleaning",

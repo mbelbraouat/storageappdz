@@ -35,7 +35,7 @@ const RolePermissionsEditor = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'user'>('user');
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'user' | 'instrumentiste'>('user');
 
   useEffect(() => {
     fetchPermissions();
@@ -130,13 +130,14 @@ const RolePermissionsEditor = () => {
         )}
       </div>
 
-      <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as 'admin' | 'user')}>
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+      <Tabs value={selectedRole} onValueChange={(v) => setSelectedRole(v as 'admin' | 'user' | 'instrumentiste')}>
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="admin">Administrateur</TabsTrigger>
           <TabsTrigger value="user">Utilisateur</TabsTrigger>
+          <TabsTrigger value="instrumentiste">Instrumentiste</TabsTrigger>
         </TabsList>
 
-        {['admin', 'user'].map(role => (
+        {['admin', 'user', 'instrumentiste'].map(role => (
           <TabsContent key={role} value={role} className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {getRolePermissions(role).map(permission => {
@@ -160,6 +161,7 @@ const RolePermissionsEditor = () => {
                         checked={permission.is_allowed}
                         onCheckedChange={() => handleTogglePermission(permission.permission_key, role)}
                         disabled={role === 'admin'} // Admin permissions are locked
+                        className={role === 'instrumentiste' ? 'accent-primary' : ''}
                       />
                       <div className="flex-1">
                         <Label
