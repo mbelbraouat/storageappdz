@@ -24,6 +24,9 @@ import SterilizationTechniques from "./pages/admin/SterilizationTechniques";
 import SterilizationPage from "./pages/sterilization/SterilizationPage";
 import SterilizationDashboard from "./pages/sterilization/SterilizationDashboard";
 import InstrumentsList from "./pages/sterilization/InstrumentsList";
+import SterilizationCycles from "./pages/sterilization/SterilizationCycles";
+import ExpiringBoxes from "./pages/sterilization/ExpiringBoxes";
+import BoxHistory from "./pages/sterilization/BoxHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +50,9 @@ const App = () => (
             <Route path="/sterilization" element={<SterilizationPage />} />
             <Route path="/sterilization/dashboard" element={<SterilizationDashboard />} />
             <Route path="/sterilization/instruments" element={<InstrumentsList />} />
+            <Route path="/sterilization/cycles" element={<SterilizationCycles />} />
+            <Route path="/sterilization/expiring" element={<ExpiringBoxes />} />
+            <Route path="/sterilization/history/:boxId" element={<BoxHistory />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/users" element={<UsersManagement />} />
             <Route path="/admin/roles" element={<RolesManagement />} />

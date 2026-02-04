@@ -40,10 +40,13 @@ import {
   Plus,
   Trash2,
   Calendar,
-  Box
+  Box,
+  Thermometer
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
+
+type AppRole = 'admin' | 'user' | 'instrumentiste';
 
 interface UserProfile {
   id: string;
@@ -51,9 +54,15 @@ interface UserProfile {
   full_name: string;
   avatar_url: string | null;
   created_at: string;
-  role?: 'admin' | 'user';
+  role?: AppRole;
   can_manage_boxes?: boolean;
 }
+
+const ROLE_LABELS: Record<AppRole, { label: string; description: string; color: string }> = {
+  admin: { label: 'Administrateur', description: 'Accès complet au système', color: 'status-badge-info' },
+  user: { label: 'Utilisateur', description: 'Accès archives et boxes', color: 'status-badge-success' },
+  instrumentiste: { label: 'Instrumentiste', description: 'Accès stérilisation uniquement', color: 'status-badge-warning' },
+};
 
 const UsersManagement = () => {
   const { toast } = useToast();
@@ -66,7 +75,7 @@ const UsersManagement = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'user'>('user');
+  const [selectedRole, setSelectedRole] = useState<AppRole>('user');
   const [canManageBoxes, setCanManageBoxes] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -74,7 +83,7 @@ const UsersManagement = () => {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserName, setNewUserName] = useState('');
-  const [newUserRole, setNewUserRole] = useState<'admin' | 'user'>('user');
+  const [newUserRole, setNewUserRole] = useState<AppRole>('user');
   const [newUserCanManageBoxes, setNewUserCanManageBoxes] = useState(false);
 
   useEffect(() => {
@@ -100,7 +109,7 @@ const UsersManagement = () => {
         const userRole = roles?.find(r => r.user_id === profile.user_id);
         return {
           ...profile,
-          role: userRole?.role as 'admin' | 'user' || 'user',
+          role: userRole?.role as AppRole || 'user',
         };
       });
 
@@ -364,13 +373,13 @@ const UsersManagement = () => {
                         </div>
                       </td>
                       <td>
-                        <span className={`status-badge ${
-                          user.role === 'admin' ? 'status-badge-info' : 'status-badge-success'
-                        }`}>
+                        <span className={`status-badge ${ROLE_LABELS[user.role || 'user'].color}`}>
                           {user.role === 'admin' ? (
-                            <><Shield className="w-3 h-3 mr-1" /> Admin</>
+                            <><Shield className="w-3 h-3 mr-1" /> {ROLE_LABELS.admin.label}</>
+                          ) : user.role === 'instrumentiste' ? (
+                            <><Thermometer className="w-3 h-3 mr-1" /> {ROLE_LABELS.instrumentiste.label}</>
                           ) : (
-                            <><UserIcon className="w-3 h-3 mr-1" /> User</>
+                            <><UserIcon className="w-3 h-3 mr-1" /> {ROLE_LABELS.user.label}</>
                           )}
                         </span>
                       </td>
@@ -430,7 +439,7 @@ const UsersManagement = () => {
               <Label>Role</Label>
               <Select
                 value={selectedRole}
-                onValueChange={(value: 'admin' | 'user') => setSelectedRole(value)}
+                onValueChange={(value: AppRole) => setSelectedRole(value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -439,13 +448,19 @@ const UsersManagement = () => {
                   <SelectItem value="user">
                     <div className="flex items-center gap-2">
                       <UserIcon className="w-4 h-4" />
-                      User
+                      Utilisateur
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="instrumentiste">
+                    <div className="flex items-center gap-2">
+                      <Thermometer className="w-4 h-4" />
+                      Instrumentiste
                     </div>
                   </SelectItem>
                   <SelectItem value="admin">
                     <div className="flex items-center gap-2">
                       <Shield className="w-4 h-4" />
-                      Administrator
+                      Administrateur
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -453,20 +468,29 @@ const UsersManagement = () => {
             </div>
 
             <div className="p-3 rounded-lg bg-accent/30 text-sm">
-              <p className="font-medium mb-1">Role Permissions:</p>
+              <p className="font-medium mb-1">Permissions du rôle :</p>
               {selectedRole === 'admin' ? (
                 <ul className="text-muted-foreground space-y-1 text-xs">
-                  <li>• Full access to admin dashboard</li>
-                  <li>• Manage users and roles</li>
-                  <li>• Manage doctors, operations, file types</li>
-                  <li>• Create and delete boxes</li>
-                  <li>• System settings access</li>
+                  <li>• Accès complet au tableau de bord admin</li>
+                  <li>• Gestion des utilisateurs et rôles</li>
+                  <li>• Gestion des docteurs, opérations, types de fichiers</li>
+                  <li>• Créer et supprimer des boxes</li>
+                  <li>• Accès aux paramètres système</li>
+                  <li>• Accès complet à la stérilisation</li>
+                </ul>
+              ) : selectedRole === 'instrumentiste' ? (
+                <ul className="text-muted-foreground space-y-1 text-xs">
+                  <li>• Accès au module de stérilisation</li>
+                  <li>• Gérer le workflow des boîtes</li>
+                  <li>• Voir et créer des instruments</li>
+                  <li>• Consulter les techniques de stérilisation</li>
+                  <li>• Scanner les codes-barres</li>
                 </ul>
               ) : (
                 <ul className="text-muted-foreground space-y-1 text-xs">
-                  <li>• Create and view archives</li>
-                  <li>• View boxes and their contents</li>
-                  <li>• Edit own archives</li>
+                  <li>• Créer et voir les archives</li>
+                  <li>• Voir les boxes et leur contenu</li>
+                  <li>• Modifier ses propres archives</li>
                 </ul>
               )}
             </div>
@@ -532,10 +556,10 @@ const UsersManagement = () => {
             </div>
 
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label>Rôle</Label>
               <Select
                 value={newUserRole}
-                onValueChange={(value: 'admin' | 'user') => setNewUserRole(value)}
+                onValueChange={(value: AppRole) => setNewUserRole(value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -544,13 +568,19 @@ const UsersManagement = () => {
                   <SelectItem value="user">
                     <div className="flex items-center gap-2">
                       <UserIcon className="w-4 h-4" />
-                      User
+                      Utilisateur
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="instrumentiste">
+                    <div className="flex items-center gap-2">
+                      <Thermometer className="w-4 h-4" />
+                      Instrumentiste
                     </div>
                   </SelectItem>
                   <SelectItem value="admin">
                     <div className="flex items-center gap-2">
                       <Shield className="w-4 h-4" />
-                      Administrator
+                      Administrateur
                     </div>
                   </SelectItem>
                 </SelectContent>
