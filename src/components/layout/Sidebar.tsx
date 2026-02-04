@@ -43,7 +43,9 @@ const Sidebar = () => {
   const sterilizationNavItems = canAccessSterilization ? [
     { icon: Thermometer, label: 'Dashboard Stérili.', path: '/sterilization/dashboard' },
     { icon: Thermometer, label: 'Workflow', path: '/sterilization' },
+    { icon: FlaskConical, label: 'Cycles', path: '/sterilization/cycles' },
     { icon: Wrench, label: 'Instruments', path: '/sterilization/instruments' },
+    { icon: Bell, label: 'Péremptions', path: '/sterilization/expiring' },
   ] : [];
 
   const adminNavItems = [
