@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Clock,
   AlertTriangle,
-  QrCode
+  QrCode,
+  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -40,29 +41,38 @@ interface BoxInfo {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, isInstrumentiste, isLoading: authLoading } = useAuth();
   const [recentArchives, setRecentArchives] = useState<RecentArchive[]>([]);
   const [recentBoxes, setRecentBoxes] = useState<BoxInfo[]>([]);
   const [almostFullBoxes, setAlmostFullBoxes] = useState<BoxInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Redirect instrumentiste to their dedicated dashboard
   useEffect(() => {
-    fetchDashboardData();
+    if (!authLoading && isInstrumentiste) {
+      navigate('/sterilization/instrumentiste', { replace: true });
+    }
+  }, [isInstrumentiste, authLoading, navigate]);
 
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel('dashboard-updates')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'archives' },
-        () => fetchDashboardData()
-      )
-      .subscribe();
+  useEffect(() => {
+    if (!isInstrumentiste && !authLoading) {
+      fetchDashboardData();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+      // Subscribe to realtime updates
+      const channel = supabase
+        .channel('dashboard-updates')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'archives' },
+          () => fetchDashboardData()
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [isInstrumentiste, authLoading]);
 
   const fetchDashboardData = async () => {
     try {
@@ -124,6 +134,17 @@ const Dashboard = () => {
     if (hour < 18) return 'Bon après-midi';
     return 'Bonsoir';
   };
+
+  // Show loading while redirecting instrumentiste
+  if (authLoading || isInstrumentiste) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

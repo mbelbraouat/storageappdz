@@ -270,6 +270,72 @@
   .animate-pulse-subtle {
     animation: pulseSlight 2s ease-in-out infinite;
   }
+
+  /* Sterilization Professional Styles */
+  .sterilization-card {
+    @apply bg-card rounded-xl border border-border/50 shadow-sm transition-all duration-300;
+    background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.95) 100%);
+  }
+
+  .sterilization-card:hover {
+    @apply shadow-lg -translate-y-0.5 border-primary/30;
+  }
+
+  .sterilization-step-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wide;
+  }
+
+  .sterilization-timeline {
+    @apply relative pl-8;
+  }
+
+  .sterilization-timeline::before {
+    content: '';
+    @apply absolute left-3 top-0 bottom-0 w-0.5;
+    background: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.2) 100%);
+  }
+
+  .sterilization-timeline-item {
+    @apply relative pb-6;
+  }
+
+  .sterilization-timeline-dot {
+    @apply absolute -left-5 w-4 h-4 rounded-full ring-4 ring-background;
+  }
+
+  /* Glassmorphism effects */
+  .glass-card {
+    @apply bg-background/60 backdrop-blur-lg border border-white/20;
+  }
+
+  .glass-primary {
+    @apply bg-primary/10 backdrop-blur-md border border-primary/20;
+  }
+
+  /* Grid pattern for backgrounds */
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(to right, hsl(var(--border) / 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  /* Workflow step cards */
+  .workflow-step {
+    @apply relative p-4 rounded-xl border-2 transition-all duration-300;
+  }
+
+  .workflow-step-active {
+    @apply border-primary bg-primary/5 shadow-lg shadow-primary/10;
+  }
+
+  .workflow-step-completed {
+    @apply border-emerald-500/50 bg-emerald-500/5;
+  }
+
+  .workflow-step-pending {
+    @apply border-muted bg-muted/20 opacity-60;
+  }
 }
 
 @keyframes slideUp {

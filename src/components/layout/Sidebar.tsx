@@ -30,17 +30,19 @@ const Sidebar = () => {
   const { isAdmin, isInstrumentiste, canAccessSterilization, profile, signOut } = useAuth();
   const location = useLocation();
 
-  // Main nav items - show sterilization items for instrumentiste
-  const mainNavItems = [
+  // Main nav items - hide all archive-related items for instrumentiste
+  const mainNavItems = isInstrumentiste ? [] : [
     { icon: LayoutDashboard, label: 'Tableau de bord', path: '/dashboard' },
-    { icon: Plus, label: 'Nouvelle Archive', path: '/archives/new', hideForInstrumentiste: true },
-    { icon: Archive, label: 'Liste Archives', path: '/archives', hideForInstrumentiste: true },
-    { icon: Box, label: 'Boxes', path: '/boxes', hideForInstrumentiste: true },
+    { icon: Plus, label: 'Nouvelle Archive', path: '/archives/new' },
+    { icon: Archive, label: 'Liste Archives', path: '/archives' },
+    { icon: Box, label: 'Boxes', path: '/boxes' },
     { icon: QrCode, label: 'Scanner QR', path: '/scan' },
   ];
 
   // Sterilization items - visible to admin and instrumentiste
+  // For instrumentiste, show their dedicated dashboard first
   const sterilizationNavItems = canAccessSterilization ? [
+    ...(isInstrumentiste ? [{ icon: LayoutDashboard, label: 'Mon Dashboard', path: '/sterilization/instrumentiste' }] : []),
     { icon: Thermometer, label: 'Dashboard Stérili.', path: '/sterilization/dashboard' },
     { icon: Thermometer, label: 'Workflow', path: '/sterilization' },
     { icon: FlaskConical, label: 'Cycles', path: '/sterilization/cycles' },
@@ -125,31 +127,31 @@ const Sidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {/* Main Navigation */}
-        <div className="mb-4">
-          {!collapsed && (
-            <p className="px-3 mb-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-              Main Menu
-            </p>
-          )}
-          {mainNavItems
-            .filter(item => !isInstrumentiste || !('hideForInstrumentiste' in item && item.hideForInstrumentiste))
-            .map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "sidebar-nav-item",
-                isActive(item.path) && "active",
-                collapsed && "justify-center px-2"
-              )}
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
-          ))}
-        </div>
+        {/* Main Navigation - Only show for non-instrumentiste users */}
+        {mainNavItems.length > 0 && (
+          <div className="mb-4">
+            {!collapsed && (
+              <p className="px-3 mb-2 text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
+                Main Menu
+              </p>
+            )}
+            {mainNavItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "sidebar-nav-item",
+                  isActive(item.path) && "active",
+                  collapsed && "justify-center px-2"
+                )}
+                title={collapsed ? item.label : undefined}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </NavLink>
+            ))}
+          </div>
+        )}
 
         {/* Sterilization Navigation */}
         {sterilizationNavItems.length > 0 && (
