@@ -23,6 +23,7 @@ import ScannerSettings from "./pages/admin/ScannerSettings";
 import SterilizationTechniques from "./pages/admin/SterilizationTechniques";
 import SterilizationPage from "./pages/sterilization/SterilizationPage";
 import SterilizationDashboard from "./pages/sterilization/SterilizationDashboard";
+import InstrumentisteDashboard from "./pages/sterilization/InstrumentisteDashboard";
 import InstrumentsList from "./pages/sterilization/InstrumentsList";
 import SterilizationCycles from "./pages/sterilization/SterilizationCycles";
 import ExpiringBoxes from "./pages/sterilization/ExpiringBoxes";
@@ -49,6 +50,7 @@ const App = () => (
             <Route path="/scan" element={<ScanQR />} />
             <Route path="/sterilization" element={<SterilizationPage />} />
             <Route path="/sterilization/dashboard" element={<SterilizationDashboard />} />
+            <Route path="/sterilization/instrumentiste" element={<InstrumentisteDashboard />} />
             <Route path="/sterilization/instruments" element={<InstrumentsList />} />
             <Route path="/sterilization/cycles" element={<SterilizationCycles />} />
             <Route path="/sterilization/expiring" element={<ExpiringBoxes />} />
